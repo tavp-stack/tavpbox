@@ -20,16 +20,6 @@
 
 ---
 
-## Tentang Project Ini
-
-TAVPBox dikembangkan menggunakan bantuan AI (MiMo-V2.5-Pro via OpenCode) untuk mempercepat proses development. Arsitektur dan keputusan desain dibuat berdasarkan analisis mendalam terhadap:
-
-- [WSL UI](https://github.com/octasoft-ltd/wsl-ui) — pattern untuk install WSL tanpa terminal
-- [Lando](https://lando.dev) — pattern untuk CLI dan plugin system
-- [TAVP Stack](https://docs.tavp.web.id) — ekosistem TAVP yang sudah ada
-
----
-
 ## Install
 
 ### Windows (PowerShell as Administrator)
@@ -246,8 +236,8 @@ LXC (TAVPBox):
 ### Build from Source
 
 ```bash
-git clone https://git.glotama.com/tavp-stack/tavp-box.git
-cd tavp-box
+git clone https://github.com/tavp-stack/tavpbox.git
+cd tavpbox
 go build -o tavpbox .
 ```
 
@@ -293,6 +283,5 @@ MIT
 
 ## Links
 
-- **Gitea (primary)**: https://git.glotama.com/tavp-stack/tavp-box
-- **GitHub (mirror)**: https://github.com/tavp-stack/tavpbox
+- **GitHub**: https://github.com/tavp-stack/tavpbox
 - **Docs**: https://docs.tavp.web.id/guide/tavpbox.html
