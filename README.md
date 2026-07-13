@@ -24,14 +24,16 @@
 
 ### Windows (PowerShell as Administrator)
 
-```powershell
-# Download binary dari releases
-# https://github.com/tavp-stack/tavpbox/releases
+> **⚠️ PENTING: Harus dijalankan sebagai Administrator!**
+> 
+> Klik kanan PowerShell → "Run as Administrator"
 
-# Atau clone dan build dari source
-git clone https://github.com/tavp-stack/tavpbox.git
-cd tavpbox
-go build -o tavpbox.exe .
+```powershell
+# Download installer dari releases
+# https://github.com/tavp-stack/tavpbox/releases/tag/v0.1.0
+
+# Jalankan sebagai Administrator
+powershell -ExecutionPolicy Bypass -File install-windows.ps1
 ```
 
 ### macOS / Linux
