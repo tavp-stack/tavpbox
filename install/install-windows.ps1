@@ -1,4 +1,4 @@
-# TAVPBox - Windows Global Installer
+﻿# TAVPBox - Windows Global Installer
 # Usage: powershell -ExecutionPolicy Bypass -File install-windows.ps1
 
 $ErrorActionPreference = "Stop"
@@ -59,11 +59,11 @@ if (-not $hasUbuntu) {
     # Wait for Ubuntu to register
     $maxWait = 60
     $waited = 0
+    $found = $false
     while ($waited -lt $maxWait) {
         Start-Sleep -Seconds 2
         $waited += 2
         $distros = wsl --list --quiet 2>&1
-        $found = $false
         foreach ($d in $distros) {
             if ($d -match "Ubuntu") {
                 $found = $true
@@ -148,7 +148,7 @@ if ($currentPath -notlike "*$installDir*") {
 
 # Create global command
 $globalWrapper = "$env:LOCALAPPDATA\Microsoft\WindowsApps\tavpbox.bat"
-$globalContent = "@echo off`n"$binaryPath" %*"
+$globalContent = "@echo off`r`n`"$binaryPath`" %*"
 Set-Content -Path $globalWrapper -Value $globalContent -Encoding ASCII
 
 Write-Host "  + TAVPBox installed globally" -ForegroundColor Green
