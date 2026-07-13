@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -87,6 +89,26 @@ func runInit(cmd *cobra.Command, args []string) error {
 }
 
 func checkPrerequisites() error {
+	// On Windows, check inside WSL
+	if runtime.GOOS == "windows" {
+		// Check if WSL is available
+		wslCheck := exec.Command("wsl", "--status")
+		if wslCheck.Run() != nil {
+			return fmt.Errorf("WSL is not available. Run: tavpbox setup")
+		}
+		// Check if lxc exists inside WSL (use temp script to avoid PowerShell escaping)
+		tmpFile := filepath.Join(os.TempDir(), "tavpbox-check.sh")
+		os.WriteFile(tmpFile, []byte("#!/bin/bash\nexport PATH=$PATH:/snap/bin\nwhich lxc 2>/dev/null\n"), 0755)
+		wslPath := strings.ReplaceAll(tmpFile, "\\", "/")
+		wslPath = strings.Replace(wslPath, "C:", "/mnt/c", 1)
+		wslPath = strings.Replace(wslPath, "c:", "/mnt/c", 1)
+		lxcCheck := exec.Command("wsl", "-d", "Ubuntu", "-u", "root", "--", "bash", wslPath)
+		if lxcCheck.Run() != nil {
+			return fmt.Errorf("LXC is not installed. Run: tavpbox setup")
+		}
+		return nil
+	}
+	// Linux/macOS check
 	if _, err := exec.LookPath("lxc"); err != nil {
 		if _, err := os.Stat("/snap/bin/lxc"); err != nil {
 			return fmt.Errorf("required tool 'lxc' not found. Run: tavpbox setup")
