@@ -1,5 +1,6 @@
 ﻿# TAVPBox - Windows Global Installer
 # Usage: powershell -ExecutionPolicy Bypass -File install-windows.ps1
+# NOTE: Run as Administrator for best results
 
 $ErrorActionPreference = "Stop"
 
@@ -11,12 +12,28 @@ Write-Host "  Like Lando, but lighter RAM" -ForegroundColor Cyan
 Write-Host "========================================================" -ForegroundColor Cyan
 Write-Host ""
 
+# ── Check if running as Administrator ────────────────────────
+$isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if (-not $isAdmin) {
+    Write-Host "  ! Not running as Administrator" -ForegroundColor Yellow
+    Write-Host "  > Some features may not work properly" -ForegroundColor Yellow
+    Write-Host "  > For best results, run as Administrator" -ForegroundColor Yellow
+    Write-Host ""
+}
+
 # ── Step 1: Check/Install WSL2 ────────────────────────────────
 Write-Host "[1/5] Checking WSL2..." -ForegroundColor Yellow
 $wslStatus = wsl --status 2>&1
 if ($LASTEXITCODE -ne 0) {
     Write-Host "  ! WSL2 not found" -ForegroundColor Red
     Write-Host "  > Installing WSL2..." -ForegroundColor Cyan
+    
+    if (-not $isAdmin) {
+        Write-Host "  X WSL2 installation requires Administrator privileges" -ForegroundColor Red
+        Write-Host "  Please run this script as Administrator" -ForegroundColor Yellow
+        Read-Host "Press Enter to exit"
+        exit 1
+    }
     
     # Enable WSL feature
     Write-Host "  > Enabling Windows Subsystem for Linux..." -ForegroundColor Cyan
@@ -54,15 +71,24 @@ if (-not $hasUbuntu) {
     Write-Host "  ! Ubuntu not found" -ForegroundColor Red
     Write-Host "  > Installing Ubuntu..." -ForegroundColor Cyan
     
-    wsl --install Ubuntu --no-launch | Out-Null
+    if (-not $isAdmin) {
+        Write-Host "  X Ubuntu installation requires Administrator privileges" -ForegroundColor Red
+        Write-Host "  Please run this script as Administrator" -ForegroundColor Yellow
+        Read-Host "Press Enter to exit"
+        exit 1
+    }
+    
+    # Install Ubuntu
+    Write-Host "  > This may take a few minutes..." -ForegroundColor Cyan
+    wsl --install -d Ubuntu --no-launch 2>&1 | Out-Null
     
     # Wait for Ubuntu to register
-    $maxWait = 60
+    $maxWait = 120
     $waited = 0
     $found = $false
     while ($waited -lt $maxWait) {
-        Start-Sleep -Seconds 2
-        $waited += 2
+        Start-Sleep -Seconds 5
+        $waited += 5
         $distros = wsl --list --quiet 2>&1
         foreach ($d in $distros) {
             if ($d -match "Ubuntu") {
