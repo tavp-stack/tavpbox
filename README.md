@@ -25,39 +25,26 @@
 ### Windows (PowerShell as Administrator)
 
 ```powershell
-# Cara cepat
-iex (irm 'https://get.tavp.dev/setup-tavpbox.ps1' -UseB)
-```
-
-Atau manual:
-```powershell
-# 1. Enable WSL2
-wsl --install --no-distribution
-
-# 2. Install Ubuntu
-wsl --install -d Ubuntu
-
-# 3. Install LXD di dalam WSL
-wsl -d Ubuntu -- sudo snap install lxd
-wsl -d Ubuntu -- sudo lxd init --auto
-
-# 4. Download binary dari GitHub Releases
+# Download binary dari releases
 # https://github.com/tavp-stack/tavpbox/releases
 
-# 5. Jalankan
-.\tavpbox.exe init
+# Atau clone dan build dari source
+git clone https://github.com/tavp-stack/tavpbox.git
+cd tavpbox
+go build -o tavpbox.exe .
 ```
 
-### macOS
+### macOS / Linux
 
 ```bash
-curl -fsSL https://get.tavp.dev/setup-tavpbox.sh | bash
-```
+# Download binary dari releases
+# https://github.com/tavp-stack/tavpbox/releases
 
-### Linux
-
-```bash
-sudo curl -fsSL https://get.tavp.dev/setup-tavpbox.sh | bash
+# Atau clone dan build dari source
+git clone https://github.com/tavp-stack/tavpbox.git
+cd tavpbox
+go build -o tavpbox .
+sudo mv tavpbox /usr/local/bin/
 ```
 
 ---
