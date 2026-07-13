@@ -12,52 +12,24 @@ Write-Host "  Like Lando, but lighter RAM" -ForegroundColor Cyan
 Write-Host "========================================================" -ForegroundColor Cyan
 Write-Host ""
 
-# ── Check if running as Administrator ────────────────────────
-$isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-if (-not $isAdmin) {
-    Write-Host "  ! Not running as Administrator" -ForegroundColor Yellow
-    Write-Host "  > Some features may not work properly" -ForegroundColor Yellow
-    Write-Host "  > For best results, run as Administrator" -ForegroundColor Yellow
-    Write-Host ""
-}
-
-# ── Step 1: Check/Install WSL2 ────────────────────────────────
-Write-Host "[1/5] Checking WSL2..." -ForegroundColor Yellow
+# ── Step 1: Check WSL2 ────────────────────────────────────────
+Write-Host "[1/4] Checking WSL2..." -ForegroundColor Yellow
 $wslStatus = wsl --status 2>&1
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "  ! WSL2 not found" -ForegroundColor Red
-    Write-Host "  > Installing WSL2..." -ForegroundColor Cyan
-    
-    if (-not $isAdmin) {
-        Write-Host "  X WSL2 installation requires Administrator privileges" -ForegroundColor Red
-        Write-Host "  Please run this script as Administrator" -ForegroundColor Yellow
-        Read-Host "Press Enter to exit"
-        exit 1
-    }
-    
-    # Enable WSL feature
-    Write-Host "  > Enabling Windows Subsystem for Linux..." -ForegroundColor Cyan
-    dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart | Out-Null
-    
-    # Enable Virtual Machine Platform
-    Write-Host "  > Enabling Virtual Machine Platform..." -ForegroundColor Cyan
-    dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart | Out-Null
-    
-    # Set WSL 2 as default
-    Write-Host "  > Setting WSL 2 as default..." -ForegroundColor Cyan
-    wsl --set-default-version 2 | Out-Null
-    
-    Write-Host "  + WSL2 installed" -ForegroundColor Green
-    Write-Host "  ! Please REBOOT your computer and run this script again" -ForegroundColor Yellow
-    Write-Host ""
+    Write-Host "  X WSL2 not available" -ForegroundColor Red
+    Write-Host "  Please install WSL2 first:" -ForegroundColor Yellow
+    Write-Host "    1. Open PowerShell as Administrator" -ForegroundColor White
+    Write-Host "    2. Run: wsl --install" -ForegroundColor White
+    Write-Host "    3. Restart computer" -ForegroundColor White
+    Write-Host "    4. Run this script again" -ForegroundColor White
     Read-Host "Press Enter to exit"
-    exit 0
+    exit 1
 } else {
     Write-Host "  + WSL2 is available" -ForegroundColor Green
 }
 
-# ── Step 2: Check/Install Ubuntu ──────────────────────────────
-Write-Host "[2/5] Checking Ubuntu WSL..." -ForegroundColor Yellow
+# ── Step 2: Check Ubuntu ──────────────────────────────────────
+Write-Host "[2/4] Checking Ubuntu WSL..." -ForegroundColor Yellow
 $distros = wsl --list --quiet 2>&1
 $hasUbuntu = $false
 foreach ($d in $distros) {
@@ -68,48 +40,15 @@ foreach ($d in $distros) {
 }
 
 if (-not $hasUbuntu) {
-    Write-Host "  ! Ubuntu not found" -ForegroundColor Red
-    Write-Host "  > Installing Ubuntu..." -ForegroundColor Cyan
-    
-    if (-not $isAdmin) {
-        Write-Host "  X Ubuntu installation requires Administrator privileges" -ForegroundColor Red
-        Write-Host "  Please run this script as Administrator" -ForegroundColor Yellow
-        Read-Host "Press Enter to exit"
-        exit 1
-    }
-    
-    # Install Ubuntu
-    Write-Host "  > This may take a few minutes..." -ForegroundColor Cyan
-    wsl --install -d Ubuntu --no-launch 2>&1 | Out-Null
-    
-    # Wait for Ubuntu to register
-    $maxWait = 120
-    $waited = 0
-    $found = $false
-    while ($waited -lt $maxWait) {
-        Start-Sleep -Seconds 5
-        $waited += 5
-        $distros = wsl --list --quiet 2>&1
-        foreach ($d in $distros) {
-            if ($d -match "Ubuntu") {
-                $found = $true
-                break
-            }
-        }
-        if ($found) {
-            break
-        }
-        Write-Host "  > Waiting for Ubuntu... ($waited seconds)" -ForegroundColor Cyan
-    }
-    
-    if (-not $found) {
-        Write-Host "  X Ubuntu installation timed out" -ForegroundColor Red
-        Write-Host "  Please install manually: wsl --install -d Ubuntu" -ForegroundColor Yellow
-        Read-Host "Press Enter to exit"
-        exit 1
-    }
-    
-    Write-Host "  + Ubuntu installed" -ForegroundColor Green
+    Write-Host "  X Ubuntu not found" -ForegroundColor Red
+    Write-Host "  Please install Ubuntu first:" -ForegroundColor Yellow
+    Write-Host "    1. Open PowerShell as Administrator" -ForegroundColor White
+    Write-Host "    2. Run: wsl --install -d Ubuntu" -ForegroundColor White
+    Write-Host "    3. Wait for installation to complete" -ForegroundColor White
+    Write-Host "    4. Set username and password when prompted" -ForegroundColor White
+    Write-Host "    5. Run this script again" -ForegroundColor White
+    Read-Host "Press Enter to exit"
+    exit 1
 } else {
     Write-Host "  + Ubuntu is available" -ForegroundColor Green
 }
@@ -118,7 +57,7 @@ if (-not $hasUbuntu) {
 wsl --set-default Ubuntu 2>&1 | Out-Null
 
 # ── Step 3: Check/Install LXD ────────────────────────────────
-Write-Host "[3/5] Checking LXD..." -ForegroundColor Yellow
+Write-Host "[3/4] Checking LXD..." -ForegroundColor Yellow
 $lxdCheck = wsl -d Ubuntu -- bash -c "which lxc 2>/dev/null"
 if ($lxdCheck -notmatch "lxc") {
     Write-Host "  ! LXD not found" -ForegroundColor Red
@@ -142,7 +81,7 @@ if ($lxdCheck -notmatch "lxc") {
 }
 
 # ── Step 4: Install TAVPBox ──────────────────────────────────
-Write-Host "[4/5] Installing TAVPBox..." -ForegroundColor Yellow
+Write-Host "[4/4] Installing TAVPBox..." -ForegroundColor Yellow
 
 # Create install directory
 $installDir = "$env:LOCALAPPDATA\tavpbox"
@@ -178,14 +117,6 @@ $globalContent = "@echo off`r`n`"$binaryPath`" %*"
 Set-Content -Path $globalWrapper -Value $globalContent -Encoding ASCII
 
 Write-Host "  + TAVPBox installed globally" -ForegroundColor Green
-
-# ── Step 5: Run Initial Setup ────────────────────────────────
-Write-Host "[5/5] Running initial setup..." -ForegroundColor Yellow
-Write-Host "  > Starting TAVPBox setup..." -ForegroundColor Cyan
-Write-Host ""
-
-# Run tavpbox init
-& $binaryPath init
 
 # ── Success ──────────────────────────────────────────────────
 Write-Host ""
