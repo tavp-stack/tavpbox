@@ -90,13 +90,14 @@ func createBox(projectCfg *config.ProjectConfig) error {
 	fmt.Printf("  [3/5] Installing stack '%s'...\n", projectCfg.Stack)
 	stackMgr := stack.NewManager(client)
 	if err := stackMgr.Install(containerName, projectCfg.Stack, nil); err != nil {
-		return fmt.Errorf("stack install failed: %w", err)
+		fmt.Printf("  ⚠ Stack install warning: %v\n", err)
+		fmt.Printf("  → You can install manually: tavpbox ssh %s\n", projectCfg.Name)
 	}
 
 	fmt.Printf("  [4/5] Installing services: %s...\n", strings.Join(projectCfg.Services, ", "))
 	svcMgr := service.NewManager(client)
 	if err := svcMgr.InstallAll(containerName, projectCfg.Services); err != nil {
-		return fmt.Errorf("service install failed: %w", err)
+		fmt.Printf("  ⚠ Service install warning: %v\n", err)
 	}
 
 	// Inject environment variables
@@ -118,11 +119,15 @@ func createBox(projectCfg *config.ProjectConfig) error {
 	projectCfg.Domain = domain
 	config.SaveProject(".", projectCfg)
 
-	// Setup auto-domain via dnsmasq
+	// Setup auto-domain via dnsmasq (non-fatal)
 	ip, _ := client.GetIP(containerName)
 	if ip != "" {
-		network.AddDnsmasqEntry(projectCfg.Name, ip)
-		network.AddCaddyRoute(domain, ip, 80)
+		if err := network.AddDnsmasqEntry(projectCfg.Name, ip); err != nil {
+			fmt.Printf("  ⚠ DNS setup warning: %v\n", err)
+		}
+		if err := network.AddCaddyRoute(domain, ip, 80); err != nil {
+			fmt.Printf("  ⚠ Caddy setup warning: %v\n", err)
+		}
 
 		// Setup mailpit subdomain if mailpit is installed
 		for _, svc := range projectCfg.Services {

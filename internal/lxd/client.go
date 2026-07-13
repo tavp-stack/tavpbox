@@ -42,13 +42,21 @@ func (c *Client) lxcArgs(args []string) []string {
 		for _, a := range args {
 			quoted = append(quoted, fmt.Sprintf("'%s'", strings.ReplaceAll(a, "'", "'\\''")))
 		}
-		script := fmt.Sprintf("#!/bin/bash\nexport PATH=$PATH:/snap/bin\nlxc %s\n", strings.Join(quoted, " "))
+		script := fmt.Sprintf(`#!/bin/bash
+export PATH=$PATH:/snap/bin
+# Start LXD daemon if not running
+if ! pgrep -x lxd > /dev/null 2>&1; then
+  nohup lxd --group lxd > /dev/null 2>&1 &
+  sleep 3
+fi
+lxc %s
+`, strings.Join(quoted, " "))
 		tmpFile := filepath.Join(os.TempDir(), "tavpbox-lxc.sh")
 		os.WriteFile(tmpFile, []byte(strings.ReplaceAll(script, "\r\n", "\n")), 0755)
 		wslPath := strings.ReplaceAll(tmpFile, "\\", "/")
 		wslPath = strings.Replace(wslPath, "C:", "/mnt/c", 1)
 		wslPath = strings.Replace(wslPath, "c:", "/mnt/c", 1)
-		return []string{"-d", "Ubuntu", "--", "bash", wslPath}
+		return []string{"-d", "Ubuntu", "-u", "root", "--", "bash", wslPath}
 	}
 	return args
 }
