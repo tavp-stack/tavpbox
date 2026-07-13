@@ -1,0 +1,26 @@
+name: node
+display_name: "Node.js"
+description: "Node.js application server"
+version: "1.0.0"
+author: TAVP Team
+category: stack
+icon: "🟩"
+
+components:
+  node:
+    label: "Node.js Version"
+    type: select
+    versions:
+      - "18"
+      - "20"
+      - "22"
+    default: "20"
+    required: true
+
+preset:
+  node: "20"
+
+provision: scripts/stacks/node.sh
+
+env:
+  NODE_VERSION: "{{.node}}"

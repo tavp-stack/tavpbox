@@ -1,0 +1,9 @@
+name: blank
+display_name: "Blank"
+description: "Empty container (manual setup)"
+version: "1.0.0"
+author: TAVP Team
+category: stack
+icon: "📦"
+
+provision: scripts/stacks/blank.sh

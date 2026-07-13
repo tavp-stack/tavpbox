@@ -1,0 +1,12 @@
+name: phpmyadmin
+display_name: "phpMyAdmin"
+description: "Web-based MySQL/MariaDB administration"
+version: "1.0.0"
+author: TAVP Team
+category: service
+icon: "🔧"
+
+provision: scripts/services/phpmyadmin.sh
+
+ports:
+  - 8080

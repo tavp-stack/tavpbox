@@ -1,0 +1,29 @@
+name: redis
+display_name: "Redis"
+description: "Redis in-memory cache"
+version: "1.0.0"
+author: TAVP Team
+category: service
+icon: "🔴"
+
+components:
+  version:
+    label: "Redis Version"
+    type: select
+    versions:
+      - "7.0"
+      - "7.2"
+      - "7.4"
+    default: "7.4"
+
+preset:
+  version: "7.4"
+
+provision: scripts/services/redis.sh
+
+ports:
+  - 6379
+
+env:
+  REDIS_HOST: "127.0.0.1"
+  REDIS_PORT: "6379"

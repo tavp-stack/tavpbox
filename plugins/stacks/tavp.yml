@@ -1,0 +1,39 @@
+name: tavp
+display_name: "TAVP Stack"
+description: "Official TAVP Stack — PHP + Nginx + Node.js"
+version: "1.0.0"
+author: TAVP Team
+category: stack
+icon: "⚡"
+
+components:
+  php:
+    label: "PHP Version"
+    type: select
+    versions:
+      - "8.1"
+      - "8.2"
+      - "8.3"
+      - "8.4"
+    default: "8.3"
+    required: true
+
+  node:
+    label: "Node.js (for Tailwind)"
+    type: select
+    versions:
+      - "18"
+      - "20"
+      - "22"
+    default: "20"
+
+preset:
+  php: "8.3"
+  node: "20"
+
+provision: scripts/stacks/tavp.sh
+
+env:
+  TAVP_STACK: "true"
+  PHP_VERSION: "{{.php}}"
+  NODE_VERSION: "{{.node}}"
