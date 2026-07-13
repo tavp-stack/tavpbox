@@ -1,6 +1,5 @@
 ﻿# TAVPBox - Windows Global Installer
 # Usage: powershell -ExecutionPolicy Bypass -File install-windows.ps1
-# NOTE: Run as Administrator for best results
 
 $ErrorActionPreference = "Stop"
 
@@ -12,24 +11,27 @@ Write-Host "  Like Lando, but lighter RAM" -ForegroundColor Cyan
 Write-Host "========================================================" -ForegroundColor Cyan
 Write-Host ""
 
-# ── Step 1: Check WSL2 ────────────────────────────────────────
-Write-Host "[1/4] Checking WSL2..." -ForegroundColor Yellow
+# ── Step 1: Check/Install WSL2 ────────────────────────────────
+Write-Host "[1/5] Checking WSL2..." -ForegroundColor Yellow
 $wslStatus = wsl --status 2>&1
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "  X WSL2 not available" -ForegroundColor Red
-    Write-Host "  Please install WSL2 first:" -ForegroundColor Yellow
-    Write-Host "    1. Open PowerShell as Administrator" -ForegroundColor White
-    Write-Host "    2. Run: wsl --install" -ForegroundColor White
-    Write-Host "    3. Restart computer" -ForegroundColor White
-    Write-Host "    4. Run this script again" -ForegroundColor White
+    Write-Host "  ! WSL2 not found" -ForegroundColor Red
+    Write-Host "  > Installing WSL2..." -ForegroundColor Cyan
+    
+    # Enable WSL features (needs admin)
+    Write-Host "  > Enabling WSL features..." -ForegroundColor Cyan
+    Start-Process powershell -Verb RunAs -Wait -ArgumentList "-NoProfile -Command `"dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart; dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart; wsl --set-default-version 2`""
+    
+    Write-Host "  + WSL2 features enabled" -ForegroundColor Green
+    Write-Host "  ! Please REBOOT your computer and run this script again" -ForegroundColor Yellow
     Read-Host "Press Enter to exit"
-    exit 1
+    exit 0
 } else {
     Write-Host "  + WSL2 is available" -ForegroundColor Green
 }
 
-# ── Step 2: Check Ubuntu ──────────────────────────────────────
-Write-Host "[2/4] Checking Ubuntu WSL..." -ForegroundColor Yellow
+# ── Step 2: Check/Install Ubuntu ──────────────────────────────
+Write-Host "[2/5] Checking Ubuntu WSL..." -ForegroundColor Yellow
 $distros = wsl --list --quiet 2>&1
 $hasUbuntu = $false
 foreach ($d in $distros) {
@@ -40,15 +42,55 @@ foreach ($d in $distros) {
 }
 
 if (-not $hasUbuntu) {
-    Write-Host "  X Ubuntu not found" -ForegroundColor Red
-    Write-Host "  Please install Ubuntu first:" -ForegroundColor Yellow
-    Write-Host "    1. Open PowerShell as Administrator" -ForegroundColor White
-    Write-Host "    2. Run: wsl --install -d Ubuntu" -ForegroundColor White
-    Write-Host "    3. Wait for installation to complete" -ForegroundColor White
-    Write-Host "    4. Set username and password when prompted" -ForegroundColor White
-    Write-Host "    5. Run this script again" -ForegroundColor White
-    Read-Host "Press Enter to exit"
-    exit 1
+    Write-Host "  ! Ubuntu not found" -ForegroundColor Red
+    Write-Host "  > Installing Ubuntu (this may take a few minutes)..." -ForegroundColor Cyan
+    
+    # Install Ubuntu with --no-launch (non-blocking)
+    wsl --install Ubuntu --no-launch 2>&1 | Out-Null
+    
+    # Poll for Ubuntu to appear (up to 120 seconds)
+    $maxWait = 120
+    $waited = 0
+    $found = $false
+    while ($waited -lt $maxWait) {
+        Start-Sleep -Seconds 3
+        $waited += 3
+        $distros = wsl --list --quiet 2>&1
+        foreach ($d in $distros) {
+            if ($d -match "Ubuntu") {
+                $found = $true
+                break
+            }
+        }
+        if ($found) {
+            break
+        }
+        Write-Host "  > Waiting for Ubuntu... ($waited seconds)" -ForegroundColor Cyan
+    }
+    
+    if (-not $found) {
+        Write-Host "  X Ubuntu installation timed out" -ForegroundColor Red
+        Write-Host "  Please install manually: wsl --install -d Ubuntu" -ForegroundColor Yellow
+        Read-Host "Press Enter to exit"
+        exit 1
+    }
+    
+    Write-Host "  + Ubuntu installed" -ForegroundColor Green
+    
+    # Open terminal for first-time setup (username/password)
+    Write-Host ""
+    Write-Host "  ! Ubuntu needs first-time setup" -ForegroundColor Yellow
+    Write-Host "  > A terminal will open for you to create a username and password" -ForegroundColor Cyan
+    Write-Host "  > After setup is complete, close the terminal and press Enter here" -ForegroundColor Cyan
+    Write-Host ""
+    Read-Host "Press Enter to open Ubuntu setup"
+    
+    # Open Ubuntu terminal for first-time setup
+    Start-Process wsl -ArgumentList "-d Ubuntu"
+    
+    # Wait for user to complete setup
+    Read-Host "Press Enter after Ubuntu setup is complete"
+    
 } else {
     Write-Host "  + Ubuntu is available" -ForegroundColor Green
 }
@@ -57,7 +99,7 @@ if (-not $hasUbuntu) {
 wsl --set-default Ubuntu 2>&1 | Out-Null
 
 # ── Step 3: Check/Install LXD ────────────────────────────────
-Write-Host "[3/4] Checking LXD..." -ForegroundColor Yellow
+Write-Host "[3/5] Checking LXD..." -ForegroundColor Yellow
 $lxdCheck = wsl -d Ubuntu -- bash -c "which lxc 2>/dev/null"
 if ($lxdCheck -notmatch "lxc") {
     Write-Host "  ! LXD not found" -ForegroundColor Red
@@ -81,7 +123,7 @@ if ($lxdCheck -notmatch "lxc") {
 }
 
 # ── Step 4: Install TAVPBox ──────────────────────────────────
-Write-Host "[4/4] Installing TAVPBox..." -ForegroundColor Yellow
+Write-Host "[4/5] Installing TAVPBox..." -ForegroundColor Yellow
 
 # Create install directory
 $installDir = "$env:LOCALAPPDATA\tavpbox"
@@ -118,6 +160,17 @@ Set-Content -Path $globalWrapper -Value $globalContent -Encoding ASCII
 
 Write-Host "  + TAVPBox installed globally" -ForegroundColor Green
 
+# ── Step 5: Verify ────────────────────────────────────────────
+Write-Host "[5/5] Verifying installation..." -ForegroundColor Yellow
+
+# Check if tavpbox works
+$tavpboxCheck = & $binaryPath version 2>&1
+if ($tavpboxCheck -match "tavpbox") {
+    Write-Host "  + TAVPBox is working" -ForegroundColor Green
+} else {
+    Write-Host "  ! TAVPBox verification failed" -ForegroundColor Yellow
+}
+
 # ── Success ──────────────────────────────────────────────────
 Write-Host ""
 Write-Host "========================================================" -ForegroundColor Green
@@ -125,10 +178,11 @@ Write-Host "  + TAVPBox installed successfully!" -ForegroundColor Green
 Write-Host "========================================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "Quick Start:" -ForegroundColor White
-Write-Host "  1. tavpbox init          - Setup your environment" -ForegroundColor Cyan
-Write-Host "  2. tavpbox create        - Create a new container" -ForegroundColor Cyan
-Write-Host "  3. tavpbox list          - List all containers" -ForegroundColor Cyan
-Write-Host "  4. tavpbox ssh <name>    - Enter a container" -ForegroundColor Cyan
+Write-Host "  1. Open a NEW terminal (PowerShell/CMD)" -ForegroundColor Cyan
+Write-Host "  2. tavpbox init          - Setup your environment" -ForegroundColor Cyan
+Write-Host "  3. tavpbox create        - Create a new container" -ForegroundColor Cyan
+Write-Host "  4. tavpbox list          - List all containers" -ForegroundColor Cyan
+Write-Host "  5. tavpbox ssh <name>    - Enter a container" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Commands:" -ForegroundColor White
 Write-Host "  tavpbox --help        - Show all commands" -ForegroundColor Cyan
@@ -137,6 +191,6 @@ Write-Host ""
 Write-Host "Documentation:" -ForegroundColor White
 Write-Host "  https://docs.tavp.web.id/guide/tavpbox.html" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "Note: You may need to restart your terminal for PATH changes to take effect" -ForegroundColor Yellow
+Write-Host "Note: You MUST open a NEW terminal for PATH changes to take effect" -ForegroundColor Yellow
 Write-Host ""
 Read-Host "Press Enter to exit"
