@@ -28,12 +28,34 @@
 > 
 > Klik kanan PowerShell → "Run as Administrator"
 
-```powershell
-# Download installer dari releases
-# https://github.com/tavp-stack/tavpbox/releases/tag/v0.1.0
+**Download dari:**
+https://github.com/tavp-stack/tavpbox/releases/tag/v0.1.0
 
-# Jalankan sebagai Administrator
+**File yang perlu didownload:**
+1. `install-windows.ps1` (installer script)
+2. `tavpbox-windows-amd64.exe` (binary)
+
+**Cara install:**
+1. Letakkan kedua file di folder yang sama (misal Desktop)
+2. Klik kanan PowerShell → "Run as Administrator"
+3. Jalankan:
+
+```powershell
 powershell -ExecutionPolicy Bypass -File install-windows.ps1
+```
+
+**Yang dilakukan installer:**
+1. ✅ Check/Install WSL2
+2. ✅ Check/Install Ubuntu WSL
+3. ✅ Check/Install LXD
+4. ✅ Install TAVPBox binary ke PATH global
+5. ✅ Verify installation
+
+**Setelah install, restart terminal lalu:**
+```powershell
+tavpbox init
+tavpbox create
+tavpbox list
 ```
 
 ### macOS / Linux
