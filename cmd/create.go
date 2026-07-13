@@ -10,6 +10,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/tavp-stack/tavpbox/internal/config"
 	"github.com/tavp-stack/tavpbox/internal/lxd"
+	"github.com/tavp-stack/tavpbox/internal/network"
+	"github.com/tavp-stack/tavpbox/internal/service"
+	"github.com/tavp-stack/tavpbox/internal/stack"
 	"gopkg.in/yaml.v3"
 )
 
@@ -85,18 +88,50 @@ func createBox(projectCfg *config.ProjectConfig) error {
 	}
 
 	fmt.Printf("  [3/5] Installing stack '%s'...\n", projectCfg.Stack)
-	installStack(client, containerName, projectCfg.Stack)
-
-	fmt.Printf("  [4/5] Installing services: %s...\n", strings.Join(projectCfg.Services, ", "))
-	for _, svc := range projectCfg.Services {
-		fmt.Printf("    → %s...\n", svc)
-		installService(client, containerName, svc)
+	stackMgr := stack.NewManager(client)
+	if err := stackMgr.Install(containerName, projectCfg.Stack, nil); err != nil {
+		return fmt.Errorf("stack install failed: %w", err)
 	}
 
-	fmt.Printf("  [5/5] Saving configuration...\n")
+	fmt.Printf("  [4/5] Installing services: %s...\n", strings.Join(projectCfg.Services, ", "))
+	svcMgr := service.NewManager(client)
+	if err := svcMgr.InstallAll(containerName, projectCfg.Services); err != nil {
+		return fmt.Errorf("service install failed: %w", err)
+	}
+
+	// Inject environment variables
+	if len(projectCfg.Env) > 0 {
+		fmt.Printf("  [4.5/5] Injecting environment variables...\n")
+		envScript := "#!/bin/bash\n"
+		for key, value := range projectCfg.Env {
+			envScript += fmt.Sprintf("echo 'export %s=\"%s\"' >> /etc/environment\n", key, value)
+		}
+		tmpEnvFile := "/tmp/tavpbox-env.sh"
+		os.WriteFile(tmpEnvFile, []byte(envScript), 0755)
+		client.Push(containerName, tmpEnvFile, "/tmp/env-setup.sh")
+		os.Remove(tmpEnvFile)
+		client.ExecNoTTY(containerName, "bash", "-c", "chmod +x /tmp/env-setup.sh && bash /tmp/env-setup.sh")
+	}
+
+	fmt.Printf("  [5/5] Configuring networking...\n")
 	domain := projectCfg.Name + "." + globalCfg.DomainSuffix
 	projectCfg.Domain = domain
 	config.SaveProject(".", projectCfg)
+
+	// Setup auto-domain via dnsmasq
+	ip, _ := client.GetIP(containerName)
+	if ip != "" {
+		network.AddDnsmasqEntry(projectCfg.Name, ip)
+		network.AddCaddyRoute(domain, ip, 80)
+
+		// Setup mailpit subdomain if mailpit is installed
+		for _, svc := range projectCfg.Services {
+			if svc == "mailpit" {
+				mailDomain := "mail." + domain
+				network.AddCaddyRoute(mailDomain, ip, 8025)
+			}
+		}
+	}
 
 	fmt.Printf(`
 ╔══════════════════════════════════════════════════════════════╗

@@ -194,8 +194,8 @@ var statusCmd = &cobra.Command{
 			return err
 		}
 
-		fmt.Printf("%-20s %-10s %-18s\n", "BOX", "STATUS", "IP")
-		fmt.Println("────────────────────────────────────────────")
+		fmt.Printf("%-20s %-10s %-18s %-10s %-10s\n", "BOX", "STATUS", "IP", "RAM", "CPU")
+		fmt.Println("────────────────────────────────────────────────────────────────────────")
 
 		for _, c := range containers {
 			name := client.StripPrefix(c.Name)
@@ -205,7 +205,26 @@ var statusCmd = &cobra.Command{
 			} else {
 				status = "○ stopped"
 			}
-			fmt.Printf("%-20s %-10s %-18s\n", name, status, c.IP)
+
+			// Get resource usage
+			ram := "-"
+			cpu := "-"
+			if c.Status == "RUNNING" {
+				info, err := client.ExecNoTTY(c.Name, "cat", "/proc/meminfo")
+				if err == nil {
+					// Parse MemAvailable
+					for _, line := range strings.Split(info, "\n") {
+						if strings.HasPrefix(line, "MemAvailable:") {
+							parts := strings.Fields(line)
+							if len(parts) >= 2 {
+								ram = parts[1] + " kB"
+							}
+						}
+					}
+				}
+			}
+
+			fmt.Printf("%-20s %-10s %-18s %-10s %-10s\n", name, status, c.IP, ram, cpu)
 		}
 
 		fmt.Printf("\nTotal: %d boxes\n", len(containers))
@@ -222,11 +241,27 @@ var logsCmd = &cobra.Command{
 		client := lxd.New()
 		containerName := client.ContainerName(name)
 
-		output, err := client.ExecNoTTY(containerName, "journalctl", "-n", "100", "--no-pager")
-		if err != nil {
-			return err
+		// Get nginx access log
+		fmt.Println("=== Nginx Access Log ===")
+		output, err := client.ExecNoTTY(containerName, "tail", "-n", "50", "/var/log/nginx/access.log")
+		if err == nil && len(output) > 0 {
+			fmt.Print(output)
 		}
-		fmt.Print(output)
+
+		// Get PHP error log
+		fmt.Println("\n=== PHP Error Log ===")
+		output, err = client.ExecNoTTY(containerName, "tail", "-n", "50", "/var/log/php8.3-fpm.log")
+		if err == nil && len(output) > 0 {
+			fmt.Print(output)
+		}
+
+		// Get system log
+		fmt.Println("\n=== System Log ===")
+		output, err = client.ExecNoTTY(containerName, "journalctl", "-n", "50", "--no-pager")
+		if err == nil && len(output) > 0 {
+			fmt.Print(output)
+		}
+
 		return nil
 	},
 }
