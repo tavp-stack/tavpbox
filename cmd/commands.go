@@ -48,6 +48,27 @@ var stopCmd = &cobra.Command{
 	},
 }
 
+var restartCmd = &cobra.Command{
+	Use:   "restart <name>",
+	Short: "Restart a box",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		name := args[0]
+		client := lxd.New()
+		containerName := client.ContainerName(name)
+
+		fmt.Printf("Restarting %s...\n", name)
+		if err := client.Stop(containerName); err != nil {
+			return err
+		}
+		if err := client.Start(containerName); err != nil {
+			return err
+		}
+		fmt.Printf("✓ %s restarted\n", name)
+		return nil
+	},
+}
+
 var listCmd = &cobra.Command{
 	Use:     "list",
 	Aliases: []string{"ls"},
