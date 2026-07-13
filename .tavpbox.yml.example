@@ -1,0 +1,50 @@
+# .tavpbox.yml
+# Per-project TAVPBox configuration
+# Commit this file to version control
+
+# ── Project ────────────────────────────────────
+name: my-tavp-app
+description: "My awesome TAVP application"
+
+# ── Stack ──────────────────────────────────────
+stack: tavp
+
+# ── Services ───────────────────────────────────
+services:
+  - mariadb
+  - redis
+  - mailpit
+
+# ── Environment Variables ──────────────────────
+env:
+  APP_NAME: "My TAVP App"
+  APP_ENV: local
+  APP_DEBUG: "true"
+  APP_URL: http://my-tavp-app.tavp.local
+  MAIL_HOST: 127.0.0.1
+  MAIL_PORT: 1025
+
+# ── File Mapping ───────────────────────────────
+webroot: .
+
+# ── Custom Tooling ─────────────────────────────
+tooling:
+  artisan:
+    cmd: php artisan
+  composer:
+    cmd: composer
+  npm:
+    cmd: npm
+  dev:
+    cmd: npm run dev
+  test:
+    cmd: php artisan test
+  migrate:
+    cmd: php artisan migrate
+
+# ── Resources ──────────────────────────────────
+ram: 512MB
+cpu: 1
+
+# ── Distro ─────────────────────────────────────
+# distro: ubuntu/24.04  # (default from global config)
