@@ -13,8 +13,20 @@
 │ Auto domain      │ *.tavp.local                         │
 │ Config file      │ .tavpbox.yml                         │
 │ Platform         │ Linux, macOS, Windows (WSL2)        │
+│ CLI language     │ Go (single binary)                   │
+│ Desktop app      │ Tauri (coming soon)                  │
 └──────────────────┴──────────────────────────────────────┘
 ```
+
+---
+
+## Tentang Project Ini
+
+TAVPBox dikembangkan menggunakan bantuan AI (MiMo-V2.5-Pro via OpenCode) untuk mempercepat proses development. Arsitektur dan keputusan desain dibuat berdasarkan analisis mendalam terhadap:
+
+- [WSL UI](https://github.com/octasoft-ltd/wsl-ui) — pattern untuk install WSL tanpa terminal
+- [Lando](https://lando.dev) — pattern untuk CLI dan plugin system
+- [TAVP Stack](https://docs.tavp.web.id) — ekosistem TAVP yang sudah ada
 
 ---
 
@@ -23,7 +35,7 @@
 ### Windows (PowerShell as Administrator)
 
 ```powershell
-# Download dan install
+# Cara cepat
 iex (irm 'https://get.tavp.dev/setup-tavpbox.ps1' -UseB)
 ```
 
@@ -39,8 +51,8 @@ wsl --install -d Ubuntu
 wsl -d Ubuntu -- sudo snap install lxd
 wsl -d Ubuntu -- sudo lxd init --auto
 
-# 4. Download binary
-Invoke-WebRequest -Uri "https://github.com/tavp-stack/tavpbox/releases/latest/download/tavpbox-windows-amd64.exe" -OutFile tavpbox.exe
+# 4. Download binary dari GitHub Releases
+# https://github.com/tavp-stack/tavpbox/releases
 
 # 5. Jalankan
 .\tavpbox.exe init
@@ -49,14 +61,12 @@ Invoke-WebRequest -Uri "https://github.com/tavp-stack/tavpbox/releases/latest/do
 ### macOS
 
 ```bash
-# Install via Lima
 curl -fsSL https://get.tavp.dev/setup-tavpbox.sh | bash
 ```
 
 ### Linux
 
 ```bash
-# Install langsung
 sudo curl -fsSL https://get.tavp.dev/setup-tavpbox.sh | bash
 ```
 
@@ -143,7 +153,6 @@ tavpbox exec my-app php artisan migrate
 | `tavpbox plugin remove <name>` | Hapus plugin |
 | `tavpbox images list` | Lihat cached images |
 | `tavpbox images pull <image>` | Download & cache image |
-| `tavpbox images remove <fingerprint>` | Hapus cached image |
 
 ### Custom Tooling
 
@@ -155,15 +164,12 @@ tooling:
     cmd: php artisan
   composer:
     cmd: composer
-  npm:
-    cmd: npm
 ```
 
 Maka bisa langsung:
 ```bash
 tavpbox artisan migrate
 tavpbox composer install
-tavpbox npm run dev
 ```
 
 ---
@@ -171,40 +177,23 @@ tavpbox npm run dev
 ## Config File: `.tavpbox.yml`
 
 ```yaml
-# Nama box (wajib)
-name: my-app
-
-# Stack: tavp, laravel, symfony, wordpress, node, python, go, ruby, blank
+name: my-project
 stack: tavp
-
-# Services (opsional)
 services:
   - mariadb
   - redis
   - mailpit
-
-# Environment variables (opsional)
-env:
-  APP_NAME: "My App"
-  APP_ENV: local
-  APP_DEBUG: "true"
-
-# Webroot folder (default: .)
 webroot: .
-
-# Custom tooling commands (opsional)
+env:
+  APP_NAME: "My Project"
+  APP_ENV: local
 tooling:
   artisan:
     cmd: php artisan
   composer:
     cmd: composer
-
-# Resource limits (opsional)
 ram: 512MB
 cpu: 1
-
-# Distro override (opsional, default dari global config)
-# distro: ubuntu/24.04
 ```
 
 ---
@@ -224,16 +213,10 @@ cpu: 1
 | Service | Description | Port |
 |---------|-------------|------|
 | `mariadb` | MariaDB database | 3306 |
-| `mysql` | MySQL database | 3306 |
 | `postgres` | PostgreSQL database | 5432 |
 | `redis` | Redis cache | 6379 |
 | `mailpit` | Email testing | 8025, 1025 |
 | `phpmyadmin` | Database admin UI | 8080 |
-| `adminer` | Database admin UI | 8080 |
-| `elasticsearch` | Search engine | 9200 |
-| `meilisearch` | Search engine | 7700 |
-| `minio` | S3-compatible storage | 9000 |
-| `rabbitmq` | Message queue | 5672 |
 
 ---
 
@@ -258,77 +241,13 @@ LXC (TAVPBox):
 
 ---
 
-## Plugins
-
-### Stack Plugin Format
-
-```yaml
-name: my-stack
-display_name: "My Stack"
-description: "Custom stack"
-version: "1.0.0"
-category: stack
-
-components:
-  php:
-    label: "PHP Version"
-    type: select
-    versions: ["8.1", "8.2", "8.3"]
-    default: "8.3"
-
-provision: scripts/my-stack.sh
-```
-
-### Service Plugin Format
-
-```yaml
-name: my-service
-display_name: "My Service"
-description: "Custom service"
-version: "1.0.0"
-category: service
-
-provision: scripts/my-service.sh
-ports:
-  - 8080
-```
-
-### Install Plugin
-
-```bash
-tavpbox plugin install my-plugin.yml
-```
-
----
-
-## API (Desktop-Ready)
-
-TAVPBox punya API layer untuk integrasi dengan desktop app:
-
-```bash
-# Start API server
-tavpbox api
-
-# Endpoints:
-# GET  /api/boxes              → list all boxes
-# POST /api/boxes/:name/start  → start box
-# POST /api/boxes/:name/stop   → stop box
-# DELETE /api/boxes/:name      → destroy box
-# GET  /api/status             → system status
-# GET  /api/plugins            → list plugins
-```
-
-Socket: `/tmp/tavpbox.sock`
-
----
-
 ## Development
 
 ### Build from Source
 
 ```bash
-git clone https://github.com/tavp-stack/tavpbox.git
-cd tavpbox
+git clone https://git.glotama.com/tavp-stack/tavp-box.git
+cd tavp-box
 go build -o tavpbox .
 ```
 
@@ -339,12 +258,6 @@ make cross
 # Output: dist/tavpbox-{os}-{arch}
 ```
 
-### Run Tests
-
-```bash
-make test
-```
-
 ---
 
 ## Troubleshooting
@@ -352,7 +265,6 @@ make test
 ### "lxc: not found"
 
 ```bash
-# Install LXD
 sudo snap install lxd
 sudo lxd init --auto
 ```
@@ -360,7 +272,6 @@ sudo lxd init --auto
 ### "WSL not available" (Windows)
 
 ```powershell
-# Enable WSL2
 wsl --install --no-distribution
 # Restart computer
 wsl --install -d Ubuntu
@@ -369,21 +280,7 @@ wsl --install -d Ubuntu
 ### Domain tidak resolve
 
 ```bash
-# Restart dnsmasq
 sudo systemctl restart dnsmasq
-
-# Atau tambah manual di /etc/hosts
-echo "127.0.0.1 my-app.tavp.local" | sudo tee -a /etc/hosts
-```
-
-### Container tidak bisa start
-
-```bash
-# Check logs
-tavpbox logs my-app
-
-# Rebuild container
-tavpbox rebuild my-app
 ```
 
 ---
