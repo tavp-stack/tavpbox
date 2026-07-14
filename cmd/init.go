@@ -1,213 +1,155 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 	"github.com/tavp-stack/tavpbox/internal/config"
-	"github.com/tavp-stack/tavpbox/internal/lxd"
+	"github.com/tavp-stack/tavpbox/internal/podman"
 )
 
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "First-time setup wizard",
-	RunE:  runInit,
-}
+	Short: "Initialize a project in the current folder",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cwd, _ := os.Getwd()
 
-var (
-	titleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#7D56F4")).MarginBottom(1)
-	docStyle   = lipgloss.NewStyle().Margin(1, 2)
-)
+		// Check if .tavpbox.yml exists
+		_, _, err := config.FindProject()
+		if err == nil {
+			fmt.Println("Project already initialized.")
+			return nil
+		}
 
-func runInit(cmd *cobra.Command, args []string) error {
-	if err := checkPrerequisites(); err != nil {
-		return err
-	}
+		reader := bufio.NewReader(os.Stdin)
 
-	m := newInitModel()
-	p := tea.NewProgram(m, tea.WithAltScreen())
-	result, err := p.Run()
-	if err != nil {
-		return err
-	}
+		// Check Podman
+		client := podman.New()
+		if !client.IsAvailable() {
+			return fmt.Errorf("podman not found. Install Podman Desktop from https://podman-desktop.io")
+		}
+		fmt.Println("✓ Podman ready")
 
-	model := result.(initModel)
-	if model.cancelled {
-		fmt.Println("Setup cancelled.")
+		// Project name
+		defaultName := filepath.Base(cwd)
+		fmt.Printf("\nProject name [%s]: ", defaultName)
+		name, _ := reader.ReadString('\n')
+		name = strings.TrimSpace(name)
+		if name == "" {
+			name = defaultName
+		}
+
+		// Recipe
+		recipes := []string{"tavp", "laravel", "php", "node", "go", "python", "blank"}
+		fmt.Println("\nRecipe:")
+		for i, r := range recipes {
+			mark := " "
+			if r == "tavp" {
+				mark = ">"
+			}
+			fmt.Printf("  %s [%d] %s\n", mark, i+1, r)
+		}
+		fmt.Print("Select [1]: ")
+		recipeInput, _ := reader.ReadString('\n')
+		recipeInput = strings.TrimSpace(recipeInput)
+		recipe := "tavp"
+		if recipeInput != "" {
+			if idx := atoi(recipeInput); idx >= 1 && idx <= len(recipes) {
+				recipe = recipes[idx-1]
+			} else {
+				recipe = recipeInput
+			}
+		}
+
+		// Services
+		allServices := []string{"mariadb", "mysql", "postgres", "mongodb", "redis", "memcached", "mailpit", "mailhog", "phpmyadmin", "adminer", "elasticsearch", "rabbitmq"}
+		defaultServices := "mariadb redis mailpit"
+		if recipe == "laravel" {
+			defaultServices = "mariadb redis mailpit"
+		}
+		fmt.Printf("\nServices (comma/space separated):\n")
+		fmt.Printf("  Available: %s\n", strings.Join(allServices, ", "))
+		fmt.Printf("  Default [%s]: ", defaultServices)
+		svcInput, _ := reader.ReadString('\n')
+		svcInput = strings.TrimSpace(svcInput)
+		if svcInput == "" {
+			svcInput = defaultServices
+		}
+		svcInput = strings.ReplaceAll(svcInput, ",", " ")
+		services := strings.Fields(svcInput)
+
+		// Webroot
+		fmt.Print("\nWebroot [public]: ")
+		webrootInput, _ := reader.ReadString('\n')
+		webrootInput = strings.TrimSpace(webrootInput)
+		if webrootInput == "" {
+			webrootInput = "public"
+		}
+
+		// RAM
+		fmt.Print("RAM limit [512MB]: ")
+		ramInput, _ := reader.ReadString('\n')
+		ramInput = strings.TrimSpace(ramInput)
+		if ramInput == "" {
+			ramInput = "512MB"
+		}
+
+		// CPU
+		fmt.Print("CPU cores [1]: ")
+		cpuInput, _ := reader.ReadString('\n')
+		cpuInput = strings.TrimSpace(cpuInput)
+		cpu := 1
+		if cpuInput != "" {
+			cpu = atoi(cpuInput)
+		}
+
+		// Build services config
+		servicesCfg := make(map[string]config.ServiceConfig)
+		for _, svc := range services {
+			servicesCfg[svc] = config.ServiceConfig{Enabled: true}
+		}
+
+		// Build config
+		cfg := &config.ProjectConfig{
+			Name:     name,
+			Recipe:   recipe,
+			Webroot:  webrootInput,
+			Services: servicesCfg,
+			Tooling:  defaultTooling(recipe),
+			RAM:      ramInput,
+			CPU:      cpu,
+			Env: map[string]string{
+				"APP_ENV": "local",
+			},
+		}
+
+		// Save config
+		if err := config.SaveProject(".tavpbox.yml", cfg); err != nil {
+			return fmt.Errorf("save config: %w", err)
+		}
+
+		globalCfg, _ := config.LoadGlobal()
+		domain := name + "." + globalCfg.DomainSuffix
+		fmt.Printf("\n✓ Project '%s' initialized!\n", name)
+		fmt.Printf("  File: .tavpbox.yml\n")
+		fmt.Printf("  URL:  http://%s\n", domain)
+		fmt.Printf("\n  Next: tavpbox create\n")
 		return nil
-	}
-
-	cfg := &config.GlobalConfig{
-		DomainSuffix:  model.domain,
-		DefaultRAM:    model.ram,
-		DefaultCPU:    1,
-		DefaultDistro: model.selectedDistro,
-		Network: config.NetworkConfig{
-			Bridge: "lxdbr0",
-			Subnet: "10.0.3.0/24",
-			DNS:    "10.0.3.1",
-		},
-	}
-
-	home := config.HomeDir()
-	for _, dir := range []string{"", "boxes", "plugins", "snapshots"} {
-		os.MkdirAll(filepath.Join(home, dir), 0755)
-	}
-
-	if err := config.SaveGlobal(cfg); err != nil {
-		return err
-	}
-
-	fmt.Println("\nConfiguring networking...")
-	exec.Command("lxd", "init", "--auto").Run()
-
-	fmt.Printf("Downloading %s image (first time)...\n", model.selectedDistro)
-	client := lxd.New()
-	client.Create("tavpbox-image-temp", model.selectedDistro, "64MB", 1)
-	client.Delete("tavpbox-image-temp")
-
-	fmt.Println(`
-╔══════════════════════════════════════════════════════╗
-║          ✓  TAVPBox initialized successfully         ║
-╠══════════════════════════════════════════════════════╣
-║                                                      ║
-║  Next steps:                                         ║
-║    tavpbox create          Create a dev box          ║
-║    tavpbox list            List all boxes            ║
-║    tavpbox --help          See all commands           ║
-║                                                      ║
-╚══════════════════════════════════════════════════════╝`)
-
-	return nil
+	},
 }
 
-func checkPrerequisites() error {
-	// On Windows, check inside WSL
-	if runtime.GOOS == "windows" {
-		// Check if WSL is available
-		wslCheck := exec.Command("wsl", "--status")
-		if wslCheck.Run() != nil {
-			return fmt.Errorf("WSL is not available. Run: tavpbox setup")
-		}
-		// Check if lxc exists inside WSL (use temp script to avoid PowerShell escaping)
-		tmpFile := filepath.Join(os.TempDir(), "tavpbox-check.sh")
-		os.WriteFile(tmpFile, []byte("#!/bin/bash\nexport PATH=$PATH:/snap/bin\nwhich lxc 2>/dev/null\n"), 0755)
-		wslPath := strings.ReplaceAll(tmpFile, "\\", "/")
-		wslPath = strings.Replace(wslPath, "C:", "/mnt/c", 1)
-		wslPath = strings.Replace(wslPath, "c:", "/mnt/c", 1)
-		lxcCheck := exec.Command("wsl", "-d", "Ubuntu", "-u", "root", "--", "bash", wslPath)
-		if lxcCheck.Run() != nil {
-			return fmt.Errorf("LXC is not installed. Run: tavpbox setup")
-		}
-		return nil
-	}
-	// Linux/macOS check
-	if _, err := exec.LookPath("lxc"); err != nil {
-		if _, err := os.Stat("/snap/bin/lxc"); err != nil {
-			return fmt.Errorf("required tool 'lxc' not found. Run: tavpbox setup")
+func atoi(s string) int {
+	n := 0
+	for _, c := range s {
+		if c >= '0' && c <= '9' {
+			n = n*10 + int(c-'0')
+		} else {
+			return 0
 		}
 	}
-	return nil
-}
-
-// ─── TUI Model ───
-
-type initModel struct {
-	step           int
-	selectedDistro string
-	domain         string
-	ram            string
-	cancelled      bool
-	distros        []string
-	cursor         int
-}
-
-func newInitModel() initModel {
-	return initModel{
-		step: 0,
-		distros: []string{
-			"ubuntu/24.04",
-			"alpine/3.20",
-			"debian/12",
-			"fedora/40",
-			"archlinux",
-		},
-		domain: "tavp.local",
-		ram:    "512MB",
-	}
-}
-
-func (m initModel) Init() tea.Cmd { return nil }
-
-func (m initModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c", "q":
-			m.cancelled = true
-			return m, tea.Quit
-
-		case "up", "k":
-			if m.cursor > 0 {
-				m.cursor--
-			}
-
-		case "down", "j":
-			if m.cursor < len(m.distros)-1 {
-				m.cursor++
-			}
-
-		case "enter":
-			switch m.step {
-			case 0:
-				m.selectedDistro = m.distros[m.cursor]
-				m.step = 1
-				return m, nil
-			case 1:
-				m.step = 2
-				return m, nil
-			case 2:
-				return m, tea.Quit
-			}
-		}
-	}
-	return m, nil
-}
-
-func (m initModel) View() string {
-	s := titleStyle.Render("⚡ TAVPBox — Initial Setup")
-	s += "\n\n"
-
-	switch m.step {
-	case 0:
-		s += "Select base distro for your boxes:\n\n"
-		for i, d := range m.distros {
-			cursor := " "
-			if i == m.cursor {
-				cursor = ">"
-			}
-			s += fmt.Sprintf("  %s %s\n", cursor, d)
-		}
-		s += "\n  ↑↓ navigate · enter select"
-
-	case 1:
-		s += "Domain suffix for auto-generated URLs:\n"
-		s += fmt.Sprintf("  Boxes will be accessible at: <name>.%s\n\n", m.domain)
-		s += fmt.Sprintf("  [Enter to keep: %s]\n", m.domain)
-
-	case 2:
-		s += "Default RAM limit per box:\n"
-		s += "  (can be overridden per box)\n\n"
-		s += fmt.Sprintf("  [Enter to keep: %s]\n", m.ram)
-		s += "\n  enter to finish setup"
-	}
-
-	return docStyle.Render(s)
+	return n
 }

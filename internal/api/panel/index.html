@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TAVPBox</title>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        primary: '#182232',
+        'primary-container': '#2d3748',
+        secondary: '#ffb55c',
+        'secondary-container': '#ffddba',
+        surface: '#f5faff',
+        'surface-container': '#e9eef3',
+        'surface-container-high': '#e4e9ee',
+        'surface-container-highest': '#dee3e8',
+        'surface-container-low': '#eff4f9',
+        'surface-container-lowest': '#ffffff',
+        'on-surface': '#171c20',
+        'on-surface-variant': '#45474c',
+        'outline-variant': '#c5c6cd',
+        error: '#ba1a1a',
+      },
+      fontFamily: {
+        headline: ['Hanken Grotesk'],
+        body: ['Inter'],
+        label: ['Inter'],
+      },
+    },
+  },
+}
+</script>
+<style>
+[x-cloak] { display: none !important; }
+.material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+.status-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+@keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:.5 } }
+body { background: #f5faff; font-family: 'Inter', sans-serif; }
+</style>
+</head>
+<body class="text-on-surface min-h-screen" x-data="app()" x-init="init()">
+
+<!-- Sidebar -->
+<aside class="fixed left-0 top-0 h-full w-[260px] bg-primary flex flex-col py-4 z-50 text-white">
+  <div class="px-6 mb-6 flex items-center gap-3">
+    <div class="w-10 h-10 bg-secondary rounded-lg flex items-center justify-center text-primary">
+      <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">bolt</span>
+    </div>
+    <div>
+      <h1 class="font-headline text-2xl font-black text-secondary">TAVPBox</h1>
+      <p class="text-xs text-blue-200">Local Dev Env</p>
+    </div>
+  </div>
+  <nav class="flex-1 px-3 space-y-1">
+    <a href="#" @click.prevent="page='dashboard'" :class="page==='dashboard' ? 'bg-secondary text-primary font-bold shadow-lg shadow-secondary/20' : 'text-blue-100 hover:bg-white/10'" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors">
+      <span class="material-symbols-outlined">dashboard</span><span class="font-label text-sm font-semibold">Dashboard</span>
+    </a>
+    <a href="#" @click.prevent="page='create'" :class="page==='create' ? 'bg-secondary text-primary font-bold shadow-lg shadow-secondary/20' : 'text-blue-100 hover:bg-white/10'" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors">
+      <span class="material-symbols-outlined">add_circle</span><span class="font-label text-sm font-semibold">Create Box</span>
+    </a>
+    <a href="#" @click.prevent="page='settings'" :class="page==='settings' ? 'bg-secondary text-primary font-bold shadow-lg shadow-secondary/20' : 'text-blue-100 hover:bg-white/10'" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors">
+      <span class="material-symbols-outlined">settings</span><span class="font-label text-sm font-semibold">Settings</span>
+    </a>
+  </nav>
+  <div class="px-6 text-xs text-blue-300">
+    <span x-text="'v' + health.version"></span>
+  </div>
+</aside>
+
+<!-- Header -->
+<header class="fixed top-0 right-0 h-16 bg-white border-b border-outline-variant flex items-center justify-between px-6 z-40 w-[calc(100%-260px)]">
+  <div class="flex items-center gap-4 flex-1">
+    <div class="relative w-full max-w-md">
+      <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+      <input class="w-full bg-surface-container-low border border-outline-variant rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" placeholder="Search boxes..." type="text"/>
+    </div>
+  </div>
+  <div class="flex items-center gap-4 text-on-surface-variant">
+    <div class="flex items-center gap-1">
+      <span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1;">memory</span>
+      <span class="text-xs font-semibold" x-text="health.podman ? 'Ready' : 'N/A'"></span>
+    </div>
+    <div class="flex items-center gap-1">
+      <span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1;">bolt</span>
+      <span class="text-xs font-semibold">Live</span>
+    </div>
+  </div>
+</header>
+
+<!-- Main Content -->
+<main class="pt-24 pb-12 ml-[260px] px-6 max-w-7xl">
+
+  <!-- DASHBOARD -->
+  <div x-show="page==='dashboard'" x-cloak>
+    <div class="flex justify-between items-end mb-6">
+      <div>
+        <h2 class="font-headline text-3xl font-semibold text-primary">System Dashboard</h2>
+        <p class="text-on-surface-variant">Manage your local development boxes</p>
+      </div>
+      <button @click="loadProjects()" class="flex items-center gap-2 px-4 py-2 border border-outline-variant rounded-lg text-sm hover:bg-white transition-colors">
+        <span class="material-symbols-outlined text-primary">refresh</span> Refresh
+      </button>
+    </div>
+
+    <!-- Status Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      <div class="bg-white p-5 rounded-2xl border border-outline-variant flex items-center gap-4">
+        <div class="w-12 h-12 bg-primary/5 rounded-full flex items-center justify-center text-primary">
+          <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dns</span>
+        </div>
+        <div>
+          <p class="text-xs text-on-surface-variant uppercase font-semibold">Caddy Status</p>
+          <p class="font-headline text-xl text-primary" x-text="health.podman ? 'Active' : 'N/A'"></p>
+        </div>
+      </div>
+      <div class="bg-white p-5 rounded-2xl border border-outline-variant flex items-center gap-4">
+        <div class="w-12 h-12 bg-secondary/10 rounded-full flex items-center justify-center text-secondary">
+          <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">inventory_2</span>
+        </div>
+        <div>
+          <p class="text-xs text-on-surface-variant uppercase font-semibold">Active Boxes</p>
+          <p class="font-headline text-xl text-primary" x-text="projects.length"></p>
+        </div>
+      </div>
+      <div class="bg-white p-5 rounded-2xl border border-outline-variant flex items-center gap-4">
+        <div class="w-12 h-12 bg-primary/5 rounded-full flex items-center justify-center text-primary">
+          <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">terminal</span>
+        </div>
+        <div>
+          <p class="text-xs text-on-surface-variant uppercase font-semibold">Podman</p>
+          <p class="font-headline text-xl text-primary" x-text="health.podman ? 'Ready' : 'N/A'"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Box Grid -->
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-headline text-xl text-primary">Active Boxes <span class="text-on-surface-variant font-normal text-lg ml-2" x-text="'(' + projects.length + ')'"></span></h3>
+    </div>
+
+    <div x-show="loading" class="text-on-surface-variant text-center py-12">Loading...</div>
+    <div x-show="!loading && projects.length === 0" class="text-center py-12">
+      <p class="text-lg text-on-surface-variant mb-2">No boxes yet</p>
+      <a href="#" @click.prevent="page='create'" class="text-secondary font-bold hover:underline">Create your first box</a>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <template x-for="p in projects" :key="p.name">
+        <div class="group bg-white rounded-2xl border border-outline-variant overflow-hidden hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 cursor-pointer" @click="selectProject(p)">
+          <div class="p-6">
+            <div class="flex justify-between items-start mb-4">
+              <div class="w-12 h-12 bg-primary/5 rounded-xl flex items-center justify-center text-primary group-hover:bg-secondary group-hover:text-primary transition-colors">
+                <span class="material-symbols-outlined text-3xl">developer_board</span>
+              </div>
+              <span :class="p.status==='running' ? 'bg-secondary/20 text-primary' : 'bg-surface-container-highest text-on-surface-variant'" class="px-2 py-1 text-[10px] font-bold rounded uppercase tracking-wider" x-text="p.status"></span>
+            </div>
+            <h4 class="font-headline text-lg text-primary mb-1" x-text="p.name"></h4>
+            <p class="text-sm text-on-surface-variant mb-4" x-text="p.domain"></p>
+            <div class="flex items-center justify-between pt-4 border-t border-outline-variant">
+              <div class="flex gap-2">
+                <button @click.stop="stopProject(p.name)" x-show="p.status==='running'" class="w-10 h-10 flex items-center justify-center rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title="Stop">
+                  <span class="material-symbols-outlined">stop_circle</span>
+                </button>
+                <button @click.stop="startProject(p.name)" x-show="p.status!=='running'" class="w-10 h-10 flex items-center justify-center rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-white transition-colors" title="Start">
+                  <span class="material-symbols-outlined">play_circle</span>
+                </button>
+                <button @click.stop="restartProject(p.name)" x-show="p.status==='running'" class="w-10 h-10 flex items-center justify-center rounded-lg bg-surface-container-high text-primary hover:bg-primary hover:text-white transition-all" title="Restart">
+                  <span class="material-symbols-outlined">refresh</span>
+                </button>
+              </div>
+              <button class="text-primary font-bold text-sm flex items-center gap-1 hover:text-secondary transition-colors">
+                Details <span class="material-symbols-outlined text-sm">arrow_forward</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- Create New Box Card -->
+      <button @click="page='create'" class="border-2 border-dashed border-outline-variant rounded-2xl p-6 flex flex-col items-center justify-center text-on-surface-variant hover:border-secondary hover:text-secondary hover:bg-secondary/5 transition-all duration-300">
+        <div class="w-12 h-12 rounded-full border-2 border-current flex items-center justify-center mb-4">
+          <span class="material-symbols-outlined text-3xl">add</span>
+        </div>
+        <span class="font-headline text-lg">New Development Box</span>
+        <span class="text-sm mt-1">Spin up a project in seconds</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- CREATE BOX -->
+  <div x-show="page==='create'" x-cloak>
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h2 class="font-headline text-3xl font-semibold text-primary">Create New Box</h2>
+        <p class="text-on-surface-variant">Configure and spin up a new development environment</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Form (2/3) -->
+      <div class="lg:col-span-2 space-y-6">
+        <section class="p-8 bg-white border border-outline-variant rounded-xl shadow-sm space-y-6">
+          <h3 class="font-headline text-xl text-primary">General Configuration</h3>
+          <div class="space-y-2">
+            <label class="text-sm font-semibold text-on-surface-variant">Box Name</label>
+            <input x-model="form.name" type="text" class="w-full px-4 py-3 rounded-lg border border-outline-variant focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none" placeholder="my-awesome-project"/>
+            <div class="mt-2 p-3 bg-surface-container-low rounded-lg border border-dashed border-outline-variant flex items-center gap-2">
+              <span class="material-symbols-outlined text-on-surface-variant text-sm">language</span>
+              <span class="text-xs text-on-surface-variant font-semibold">Local Domain:</span>
+              <span class="text-xs text-secondary font-bold" x-text="(form.name || 'my-project') + '.' + domainSuffix"></span>
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <label class="text-sm font-semibold text-on-surface-variant">Recipe</label>
+            <div class="grid grid-cols-3 gap-2">
+              <template x-for="r in recipes" :key="r.name">
+                <button @click="form.recipe=r.name" :class="form.recipe===r.name ? 'border-secondary bg-secondary/10 text-primary' : 'border-outline-variant hover:border-primary'" class="border rounded-lg p-3 text-left transition">
+                  <p class="font-semibold text-sm" x-text="r.display_name"></p>
+                  <p class="text-xs text-on-surface-variant mt-0.5" x-text="r.description"></p>
+                </button>
+              </template>
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <label class="text-sm font-semibold text-on-surface-variant">Webroot</label>
+            <input x-model="form.webroot" type="text" class="w-full px-4 py-3 rounded-lg border border-outline-variant focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none" placeholder="public"/>
+          </div>
+
+          <div class="space-y-4">
+            <div class="flex justify-between items-center">
+              <label class="text-sm font-semibold text-on-surface-variant">CPU Limit</label>
+              <span class="text-sm font-bold text-primary bg-secondary-container px-3 py-1 rounded-full"><span x-text="form.cpu"></span> Cores</span>
+            </div>
+            <input x-model.number="form.cpu" type="range" min="1" max="8" step="1" class="w-full accent-secondary"/>
+            <div class="flex justify-between text-xs text-on-surface-variant"><span>1 Core</span><span>8 Cores</span></div>
+          </div>
+
+          <div class="space-y-4">
+            <div class="flex justify-between items-center">
+              <label class="text-sm font-semibold text-on-surface-variant">RAM Allocation</label>
+              <span class="text-sm font-bold text-primary bg-secondary-container px-3 py-1 rounded-full"><span x-text="form.ram"></span> MB</span>
+            </div>
+            <input x-model.number="form.ram" type="range" min="256" max="4096" step="128" class="w-full accent-secondary"/>
+            <div class="flex justify-between text-xs text-on-surface-variant"><span>256 MB</span><span>4 GB</span></div>
+          </div>
+
+          <div class="space-y-2">
+            <label class="text-sm font-semibold text-on-surface-variant">Services</label>
+            <div class="flex flex-wrap gap-2">
+              <template x-for="s in allServices" :key="s.name">
+                <label :class="form.services[s.name] ? 'border-secondary bg-secondary/10 text-primary' : 'border-outline-variant text-on-surface-variant hover:border-primary'" class="border rounded-lg px-3 py-1.5 text-sm cursor-pointer transition">
+                  <input type="checkbox" :value="s.name" class="hidden" @change="toggleService(s.name)">
+                  <span x-text="s.display_name"></span>
+                </label>
+              </template>
+            </div>
+          </div>
+        </section>
+
+        <div class="flex items-center justify-between">
+          <button @click="page='dashboard'" class="px-6 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors">Cancel</button>
+          <button @click="createProject()" :disabled="creating" class="px-10 py-3 rounded-lg bg-secondary text-primary font-bold hover:shadow-lg transition-all active:scale-95 flex items-center gap-2">
+            <span x-show="!creating">Create Box</span>
+            <span x-show="creating">Creating...</span>
+            <span class="material-symbols-outlined">arrow_forward</span>
+          </button>
+        </div>
+        <div x-show="createError" class="text-error text-sm" x-text="createError"></div>
+      </div>
+
+      <!-- Info (1/3) -->
+      <div class="space-y-6">
+        <div class="p-6 bg-white border border-primary/10 rounded-xl space-y-4 shadow-sm relative overflow-hidden">
+          <div class="absolute top-0 left-0 w-1 h-full bg-primary"></div>
+          <div class="flex items-center gap-2 text-primary">
+            <span class="material-symbols-outlined text-secondary">info</span>
+            <h3 class="text-sm font-bold uppercase tracking-wider">Efficiency Tip</h3>
+          </div>
+          <p class="text-sm text-on-surface-variant">
+            TAVPBox uses Podman containers, which are significantly more RAM-efficient than Docker. Most PHP projects run perfectly with <span class="font-bold text-primary">256MB - 512MB</span> of RAM.
+          </p>
+          <div class="pt-4 border-t border-outline-variant flex flex-col gap-2">
+            <div class="flex justify-between text-xs"><span class="text-on-surface-variant">Estimated Overhead</span><span class="text-primary font-bold">~50MB</span></div>
+            <div class="flex justify-between text-xs"><span class="text-on-surface-variant">Boot Time</span><span class="text-secondary font-bold">&lt; 3 seconds</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div x-show="page==='settings'" x-cloak>
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h2 class="font-headline text-3xl font-semibold text-primary">System Settings</h2>
+        <p class="text-on-surface-variant">Configure global resource limits and domain settings</p>
+      </div>
+    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <section class="bg-white border border-outline-variant rounded-xl p-6">
+        <h3 class="font-headline text-lg text-primary mb-4">Domain Settings</h3>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-semibold mb-2">Default Suffix</label>
+            <input x-model="domainSuffix" type="text" class="w-full p-2 border border-outline-variant rounded-lg" disabled/>
+            <p class="text-xs text-on-surface-variant mt-1">All boxes get <span x-text="'*.tavp.my.id'"></span> domains</p>
+          </div>
+        </div>
+      </section>
+      <section class="bg-white border border-outline-variant rounded-xl p-6">
+        <h3 class="font-headline text-lg text-primary mb-4">Available Recipes</h3>
+        <div class="space-y-2">
+          <template x-for="r in recipes" :key="r.name">
+            <div class="flex items-center justify-between p-3 border border-outline-variant rounded-lg">
+              <div>
+                <p class="font-semibold text-sm" x-text="r.display_name"></p>
+                <p class="text-xs text-on-surface-variant" x-text="r.description"></p>
+              </div>
+              <span class="text-xs bg-surface-container px-2 py-0.5 rounded" x-text="r.image"></span>
+            </div>
+          </template>
+        </div>
+      </section>
+    </div>
+  </div>
+
+</main>
+
+<!-- Project Detail Modal -->
+<div x-show="selectedProject" x-cloak class="fixed inset-0 bg-black/60 flex items-center justify-center z-50" @click.self="selectedProject=null">
+  <div class="bg-white border border-outline-variant rounded-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-headline text-2xl text-primary" x-text="selectedProject?.name"></h3>
+      <button @click="selectedProject=null" class="text-on-surface-variant hover:text-on-surface text-2xl">&times;</button>
+    </div>
+    <div class="grid grid-cols-2 gap-4 mb-4">
+      <div class="bg-surface-container-low rounded-lg p-3">
+        <p class="text-xs text-on-surface-variant font-semibold">Status</p>
+        <p class="font-semibold" :class="selectedProject?.status==='running' ? 'text-green-600' : 'text-error'" x-text="selectedProject?.status"></p>
+      </div>
+      <div class="bg-surface-container-low rounded-lg p-3">
+        <p class="text-xs text-on-surface-variant font-semibold">Domain</p>
+        <a :href="'http://' + selectedProject?.domain" target="_blank" class="font-semibold text-secondary hover:underline" x-text="selectedProject?.domain"></a>
+      </div>
+      <div class="bg-surface-container-low rounded-lg p-3">
+        <p class="text-xs text-on-surface-variant font-semibold">IP</p>
+        <p class="font-mono text-sm" x-text="selectedProject?.ip || 'N/A'"></p>
+      </div>
+      <div class="bg-surface-container-low rounded-lg p-3">
+        <p class="text-xs text-on-surface-variant font-semibold">Image</p>
+        <p class="font-mono text-sm" x-text="selectedProject?.image"></p>
+      </div>
+    </div>
+    <div class="mb-4">
+      <p class="text-xs text-on-surface-variant font-semibold mb-2">Logs</p>
+      <pre class="bg-primary rounded-lg p-3 text-xs text-white/70 overflow-x-auto max-h-60 overflow-y-auto font-mono" x-text="projectLogs || 'Loading...'"></pre>
+    </div>
+    <div class="flex gap-2">
+      <a :href="'http://' + selectedProject?.domain" target="_blank" class="px-4 py-2 bg-secondary text-primary rounded-lg text-sm font-bold transition hover:shadow-lg">Open App</a>
+      <button @click="loadProjectLogs(selectedProject?.name)" class="px-4 py-2 bg-surface-container-high rounded-lg text-sm transition hover:bg-surface-container-highest">Refresh Logs</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div x-show="toast" x-cloak x-transition class="fixed bottom-6 right-6 bg-white border border-outline-variant rounded-xl px-5 py-3 text-sm shadow-xl z-50" :class="toastType==='error' ? 'border-error/50 text-error' : 'border-green-500/50 text-green-700'" x-text="toast"></div>
+
+<script>
+function app() {
+  return {
+    page: 'dashboard',
+    loading: false,
+    creating: false,
+    projects: [],
+    recipes: [],
+    allServices: [],
+    selectedProject: null,
+    projectLogs: '',
+    health: { podman: false, version: 'dev' },
+    domainSuffix: 'tavp.my.id',
+    form: { name: '', recipe: 'tavp', webroot: 'public', ram: 512, cpu: 1, services: {} },
+    toast: '',
+    toastType: 'success',
+    createError: '',
+
+    async init() {
+      await this.loadHealth();
+      await this.loadRecipes();
+      await this.loadServices();
+      await this.loadProjects();
+      const res = await fetch('/api/health');
+      const data = await res.json();
+      if (data.data) this.domainSuffix = data.data.domain_suffix || 'tavp.my.id';
+    },
+
+    async api(method, path, body) {
+      try {
+        const opts = { method, headers: { 'Content-Type': 'application/json' } };
+        if (body) opts.body = JSON.stringify(body);
+        const res = await fetch('/api' + path, opts);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Unknown error');
+        return data.data;
+      } catch (e) {
+        this.showToast(e.message, 'error');
+        throw e;
+      }
+    },
+
+    showToast(msg, type = 'success') {
+      this.toast = msg;
+      this.toastType = type;
+      setTimeout(() => this.toast = '', 3000);
+    },
+
+    async loadHealth() {
+      try {
+        const data = await this.api('GET', '/health');
+        this.health = data;
+      } catch {}
+    },
+
+    async loadProjects() {
+      this.loading = true;
+      try { this.projects = await this.api('GET', '/projects') || []; } catch { this.projects = []; }
+      this.loading = false;
+    },
+
+    async loadRecipes() {
+      try { this.recipes = await this.api('GET', '/recipes') || []; } catch {}
+    },
+
+    async loadServices() {
+      try { this.allServices = await this.api('GET', '/services') || []; } catch {}
+    },
+
+    async selectProject(p) {
+      this.selectedProject = p;
+      this.projectLogs = 'Loading...';
+      await this.loadProjectLogs(p.name);
+    },
+
+    async loadProjectLogs(name) {
+      try {
+        const data = await this.api('GET', '/projects/' + name + '/logs');
+        this.projectLogs = data?.logs || 'No logs';
+      } catch { this.projectLogs = 'Failed to load logs'; }
+    },
+
+    toggleService(name) {
+      if (this.form.services[name]) {
+        delete this.form.services[name];
+      } else {
+        this.form.services[name] = { enabled: true };
+      }
+    },
+
+    async createProject() {
+      if (!this.form.name) { this.createError = 'Name required'; return; }
+      this.creating = true;
+      this.createError = '';
+      try {
+        await this.api('POST', '/projects', {
+          name: this.form.name,
+          recipe: this.form.recipe,
+          webroot: this.form.webroot,
+          services: this.form.services,
+          ram: this.form.ram + 'MB',
+          cpu: this.form.cpu,
+        });
+        this.showToast('Project config saved! Run: cd ' + this.form.name + ' && tavpbox create');
+        this.page = 'dashboard';
+        await this.loadProjects();
+      } catch (e) {
+        this.createError = e.message;
+      }
+      this.creating = false;
+    },
+
+    async startProject(name) {
+      await this.api('POST', '/projects/' + name + '/start');
+      this.showToast('Started ' + name);
+      await this.loadProjects();
+    },
+
+    async stopProject(name) {
+      await this.api('POST', '/projects/' + name + '/stop');
+      this.showToast('Stopped ' + name);
+      await this.loadProjects();
+    },
+
+    async restartProject(name) {
+      await this.api('POST', '/projects/' + name + '/restart');
+      this.showToast('Restarted ' + name);
+      await this.loadProjects();
+    },
+  };
+}
+</script>
+</body>
+</html>

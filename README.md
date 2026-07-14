@@ -1,20 +1,21 @@
 # TAVPBox
 
-> **LXC-based dev environment** — seperti [Lando](https://lando.dev), tapi lebih irit RAM karena pakai LXC bukan Docker.
+> **Lando Dockerless** — Local development environment seperti [Lando](https://lando.dev), tapi pakai [Podman](https://podman.io) (bukan Docker).
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  TAVPBox — Ringkasan                                     │
+│  TAVPBox                                                │
 ├──────────────────┬──────────────────────────────────────┤
-│ Runtime          │ LXC/LXD (system container)           │
-│ RAM / container  │ ~30-50MB                             │
-│ 20 project       │ ~700MB (vs Docker ~3.2GB)           │
-│ Phalcon          │ Compile sekali, persist forever      │
-│ Auto domain      │ *.tavp.local                         │
+│ Runtime          │ Podman (rootless, daemonless)        │
+│ Reverse Proxy    │ Traefik (auto-HTTPS)                 │
+│ RAM / container  │ ~50-80MB                             │
+│ 20 project       │ ~1.5GB (vs Docker ~3.2GB)           │
+│ Auto domain      │ *.tavp.my.id                         │
 │ Config file      │ .tavpbox.yml                         │
-│ Platform         │ Linux, macOS, Windows (WSL2)        │
+│ Platform         │ Windows, macOS, Linux                │
 │ CLI language     │ Go (single binary)                   │
-│ Desktop app      │ Tauri (coming soon)                  │
+│ Web UI           │ Built-in panel (Tailwind + Alpine)   │
+│ License          │ MIT                                  │
 └──────────────────┴──────────────────────────────────────┘
 ```
 
@@ -22,169 +23,133 @@
 
 ## Install
 
-### Windows (PowerShell as Administrator)
+### Prerequisites
 
-> **⚠️ PENTING: Harus dijalankan sebagai Administrator!**
-> 
-> Klik kanan PowerShell → "Run as Administrator"
-
-**Download dari:**
-https://github.com/tavp-stack/tavpbox/releases/tag/v0.1.0
-
-**File yang perlu didownload:**
-1. `install-windows.ps1` (installer script)
-2. `tavpbox-windows-amd64.exe` (binary)
-
-**Cara install:**
-1. Letakkan kedua file di folder yang sama (misal Desktop)
-2. Klik kanan PowerShell → "Run as Administrator"
-3. Jalankan:
+Install [Podman Desktop](https://podman-desktop.io) first, then:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File install-windows.ps1
+# Windows
+podman machine init
+podman machine start
+
+# macOS
+podman machine init
+podman machine start
+
+# Linux
+sudo apt install podman   # or: sudo dnf install podman
 ```
 
-**Yang dilakukan installer:**
-1. ✅ Check/Install WSL2
-2. ✅ Check/Install Ubuntu WSL
-3. ✅ Check/Install LXD
-4. ✅ Install TAVPBox binary ke PATH global
-5. ✅ Verify installation
+### Install TAVPBox
 
-**Setelah install, restart terminal lalu:**
-```powershell
-tavpbox init
-tavpbox create
-tavpbox list
-```
+**Option 1: Download binary**
 
-### macOS / Linux
+Download from [Releases](https://github.com/tavp-stack/tavpbox/releases) and add to PATH.
+
+**Option 2: Build from source**
 
 ```bash
-# Download binary dari releases
-# https://github.com/tavp-stack/tavpbox/releases
-
-# Atau clone dan build dari source
 git clone https://github.com/tavp-stack/tavpbox.git
 cd tavpbox
 go build -o tavpbox .
-sudo mv tavpbox /usr/local/bin/
+# Move to PATH:
+# Windows: move tavpbox.exe C:\Users\<you>\AppData\Local\tavpbox\
+# macOS/Linux: sudo mv tavpbox /usr/local/bin/
+```
+
+**Option 3: Go install**
+
+```bash
+go install github.com/tavp-stack/tavpbox@latest
 ```
 
 ---
 
-## Quick Start (5 Menit)
-
-### 1. Inisialisasi
+## Quick Start
 
 ```bash
-tavpbox init
-```
-
-TUI wizard akan muncul:
-- Pilih distro (Ubuntu, Alpine, Debian, dll)
-- Set domain suffix (*.tavp.local)
-- Set default RAM per box
-
-### 2. Buat Project
-
-```bash
+# 1. Init project
 cd ~/projects/my-app
+tavpbox init
+
+# 2. Create container (installs nginx, PHP, services)
 tavpbox create
-```
 
-TUI wizard akan muncul:
-- Masukkan nama box
-- Pilih stack (TAVP, Laravel, Node, Python, Blank)
-- Pilih services (MariaDB, Redis, Mailpit, dll)
+# 3. Open in browser
+# http://my-app.tavp.my.id
 
-### 3. Akses Project
+# 4. SSH into container
+tavpbox ssh
 
-```bash
-# Buka di browser
-open http://my-app.tavp.local
-
-# SSH ke container
-tavpbox ssh my-app
-
-# Jalankan command di container
-tavpbox exec my-app php artisan migrate
+# 5. Run tooling commands
+tavpbox artisan migrate
+tavpbox composer install
+tavpbox npm run dev
 ```
 
 ---
 
-## Semua Commands
+## Commands
 
 ### Lifecycle
 
 | Command | Description |
 |---------|-------------|
-| `tavpbox init` | Setup pertama kali (TUI wizard) |
-| `tavpbox create` | Buat box baru (TUI wizard atau dari file) |
-| `tavpbox start <name>` | Start box |
-| `tavpbox stop <name>` | Stop box (RAM langsung bebas) |
-| `tavpbox restart <name>` | Restart box |
-| `tavpbox destroy <name>` | Hapus box permanen |
-| `tavpbox rebuild <name>` | Rebuild box (data di folder tetap ada) |
+| `tavpbox init` | Initialize project (creates `.tavpbox.yml`) |
+| `tavpbox create` | Create and start container |
+| `tavpbox start` | Start container |
+| `tavpbox stop` | Stop container |
+| `tavpbox restart` | Restart container |
+| `tavpbox destroy` | Destroy container permanently |
+| `tavpbox rebuild` | Destroy and recreate container |
 
 ### Monitoring
 
 | Command | Description |
 |---------|-------------|
-| `tavpbox list` | Lihat semua box |
-| `tavpbox status` | Lihat status system + resource usage |
-| `tavpbox info <name>` | Detail box (IP, stack, services) |
-| `tavpbox logs <name>` | Lihat logs (nginx, PHP, system) |
-| `tavpbox snapshot <name>` | Buat snapshot |
+| `tavpbox list` | List all containers |
+| `tavpbox info` | Show project details (URLs, DB creds) |
+| `tavpbox logs` | Show container logs |
 
-### Exec & SSH
+### Tooling
 
 | Command | Description |
 |---------|-------------|
-| `tavpbox ssh <name>` | Masuk terminal box |
-| `tavpbox ssh <name> <cmd>` | Jalankan command di box |
-| `tavpbox exec <name> <cmd>` | Jalankan command di box |
+| `tavpbox tooling` | List available tooling commands |
+| `tavpbox artisan [args]` | Run `php artisan` in container |
+| `tavpbox composer [args]` | Run `composer` in container |
+| `tavpbox npm [args]` | Run `npm` in container |
+| `tavpbox ssh [cmd]` | SSH into container or run command |
 
-### Plugin & Images
+### Panel
 
 | Command | Description |
 |---------|-------------|
-| `tavpbox plugin list` | Lihat plugin terinstall |
-| `tavpbox plugin install <file>` | Install plugin dari YAML |
-| `tavpbox plugin remove <name>` | Hapus plugin |
-| `tavpbox images list` | Lihat cached images |
-| `tavpbox images pull <image>` | Download & cache image |
+| `tavpbox panel` | Start web panel at http://localhost:8080 |
+| `tavpbox panel -p 3000` | Start on custom port |
 
-### Custom Tooling
+### Setup
 
-Jika `.tavpbox.yml` punya `tooling:` section:
-
-```yaml
-tooling:
-  artisan:
-    cmd: php artisan
-  composer:
-    cmd: composer
-```
-
-Maka bisa langsung:
-```bash
-tavpbox artisan migrate
-tavpbox composer install
-```
+| Command | Description |
+|---------|-------------|
+| `tavpbox setup` | Install dependencies (Podman) |
+| `tavpbox version` | Show version |
 
 ---
 
-## Config File: `.tavpbox.yml`
+## Config: `.tavpbox.yml`
 
 ```yaml
 name: my-project
-stack: tavp
+recipe: tavp
+webroot: public
 services:
-  - mariadb
-  - redis
-  - mailpit
-webroot: .
+  mariadb:
+    enabled: true
+  redis:
+    enabled: true
+  mailpit:
+    enabled: true
 env:
   APP_NAME: "My Project"
   APP_ENV: local
@@ -193,95 +158,129 @@ tooling:
     cmd: php artisan
   composer:
     cmd: composer
+  npm:
+    cmd: npm
+  test:
+    cmd: php artisan test
 ram: 512MB
 cpu: 1
 ```
 
 ---
 
-## Stacks
+## Recipes
 
-| Stack | Description | Components |
-|-------|-------------|------------|
-| `tavp` | TAVP Stack (PHP + Nginx + Node.js) | PHP 8.3, Nginx, Node 20 |
-| `laravel` | Laravel | PHP 8.3, Nginx |
-| `node` | Node.js | Node 20, Nginx |
-| `python` | Python | Python 3, Nginx |
-| `blank` | Empty container | Basic tools |
+| Recipe | Description | Image | Default Services |
+|--------|-------------|-------|------------------|
+| `tavp` | TAVP Stack (PHP 8.3 + Nginx + Node 20) | ubuntu:24.04 | mariadb, redis, mailpit |
+| `laravel` | Laravel | ubuntu:24.04 | mariadb, redis, mailpit |
+| `php` | Generic PHP | ubuntu:24.04 | mariadb, redis |
+| `node` | Node.js | node:20-alpine | redis |
+| `go` | Go | golang:1.22-alpine | — |
+| `python` | Python | python:3.12-slim | redis |
+| `blank` | Empty container | ubuntu:24.04 | — |
 
 ## Services
 
-| Service | Description | Port |
-|---------|-------------|------|
-| `mariadb` | MariaDB database | 3306 |
-| `postgres` | PostgreSQL database | 5432 |
-| `redis` | Redis cache | 6379 |
-| `mailpit` | Email testing | 8025, 1025 |
-| `phpmyadmin` | Database admin UI | 8080 |
+| Service | Category | Description |
+|---------|----------|-------------|
+| mariadb | database | MySQL-compatible RDBMS |
+| mysql | database | MySQL |
+| postgres | database | PostgreSQL |
+| mongodb | database | NoSQL document DB |
+| redis | cache | In-memory cache |
+| memcached | cache | Distributed cache |
+| mailpit | mail | Email testing (SMTP + web UI) |
+| mailhog | mail | Email testing |
+| phpmyadmin | admin | Database admin UI |
+| adminer | admin | Lightweight DB manager |
+| elasticsearch | search | Search engine |
+| rabbitmq | queue | Message broker |
+| beanstalkd | queue | Work queue |
+| apache | webserver | Apache HTTP server |
+| varnish | cache | HTTP reverse proxy cache |
 
 ---
 
-## RAM Comparison
+## Tooling
+
+Tooling commands run inside the container. Define them in `.tavpbox.yml`:
+
+```yaml
+tooling:
+  artisan:
+    cmd: php artisan
+  composer:
+    cmd: composer
+  npm:
+    cmd: npm
+  test:
+    cmd: php artisan test
+```
+
+Then use them directly:
+
+```bash
+tavpbox artisan migrate
+tavpbox composer install
+tavpbox npm run dev
+tavpbox test
+```
+
+Default tooling is auto-detected from recipe:
+- **tavp/laravel**: artisan, composer, npm, npx, php, test
+- **php**: composer, php, test
+- **node**: npm, npx, yarn, pnpm, node
+- **go**: go
+- **python**: python, pip, pytest
+
+---
+
+## Web Panel
+
+```bash
+tavpbox panel
+# Opens http://localhost:8080
+```
+
+Features:
+- Dashboard (all projects with status)
+- Create project wizard
+- Project detail (logs, URLs, DB credentials)
+- Start/Stop/Restart/Destroy actions
+- Recipe & service browser
+
+---
+
+## Architecture
 
 ```
-Scenario: 20 development projects running simultaneously
-
-Docker (Lando):
-  dockerd         :  ~200MB
-  20 containers   :  ~20 × 150MB = ~3000MB
-  Total           :  ~3.2GB
-
-LXC (TAVPBox):
-  lxd daemon      :  ~30MB
-  20 containers   :  ~20 × 35MB = ~700MB
-  Caddy + dnsmasq :  ~15MB
-  Total           :  ~745MB
-
-  Savings: ~2.4GB (75% less RAM!)
+tavpbox (Go binary)
+├── CLI (cobra)
+├── Podman client (exec wrapper)
+├── Traefik (reverse proxy container)
+│   ├── *.tavp.my.id → container:80
+│   └── Auto-HTTPS via ACME
+├── Service library (15 services)
+├── Recipe library (7 recipes)
+├── Plugin engine (~/.tavpbox/plugins/)
+├── API server (REST + embedded panel)
+└── Tooling engine (dynamic subcommands)
 ```
 
 ---
 
 ## Development
 
-### Build from Source
-
 ```bash
-git clone https://github.com/tavp-stack/tavpbox.git
-cd tavpbox
+# Build
 go build -o tavpbox .
-```
 
-### Cross-Compile
-
-```bash
+# Cross-compile
 make cross
-# Output: dist/tavpbox-{os}-{arch}
-```
 
----
-
-## Troubleshooting
-
-### "lxc: not found"
-
-```bash
-sudo snap install lxd
-sudo lxd init --auto
-```
-
-### "WSL not available" (Windows)
-
-```powershell
-wsl --install --no-distribution
-# Restart computer
-wsl --install -d Ubuntu
-```
-
-### Domain tidak resolve
-
-```bash
-sudo systemctl restart dnsmasq
+# Run
+./tavpbox version
 ```
 
 ---
@@ -295,4 +294,4 @@ MIT
 ## Links
 
 - **GitHub**: https://github.com/tavp-stack/tavpbox
-- **Docs**: https://docs.tavp.web.id/guide/tavpbox.html
+- **Issues**: https://github.com/tavp-stack/tavpbox/issues

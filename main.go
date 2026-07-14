@@ -1,16 +1,7 @@
 package main
 
-import (
-	"os"
-
-	"github.com/tavp-stack/tavpbox/cmd"
-)
-
-var version = "dev"
+import "github.com/tavp-stack/tavpbox/cmd"
 
 func main() {
-	cmd.Version = version
-	if err := cmd.Execute(); err != nil {
-		os.Exit(1)
-	}
+	cmd.Execute()
 }
