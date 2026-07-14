@@ -5,9 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strconv"
-	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -127,12 +125,8 @@ func ensureProxyRunning() {
 	cmd.Stderr = nil
 	cmd.Stdin = nil
 
-	// Detach process on Windows
-	if runtime.GOOS == "windows" {
-		cmd.SysProcAttr = &syscall.SysProcAttr{
-			CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP | 0x00000008, // DETACHED_PROCESS
-		}
-	}
+	// Detach process (platform-specific)
+	detachProcess(cmd)
 
 	if err := cmd.Start(); err != nil {
 		fmt.Printf("  ⚠ Could not start proxy: %v\n", err)
