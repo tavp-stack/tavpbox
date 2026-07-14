@@ -4,60 +4,90 @@
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  TAVPBox                                                │
+│  TAVPBox v1.1.0                                         │
 ├──────────────────┬──────────────────────────────────────┤
 │ Runtime          │ Podman (rootless, daemonless)        │
-│ Reverse Proxy    │ Traefik (auto-HTTPS)                 │
+│ Reverse Proxy    │ Embedded Go proxy (HTTP + HTTPS)     │
+│ HTTPS            │ Let's Encrypt wildcard cert          │
 │ RAM / container  │ ~50-80MB                             │
 │ 20 project       │ ~1.5GB (vs Docker ~3.2GB)           │
 │ Auto domain      │ *.tavp.my.id                         │
-│ Config file      │ .tavpbox.yml                         │
+│ Config file      │ .tavpbox.yml / .lando.yml            │
 │ Platform         │ Windows, macOS, Linux                │
 │ CLI language     │ Go (single binary)                   │
 │ Web UI           │ Built-in panel (Tailwind + Alpine)   │
+│ Lando migration  │ Full .lando.yml support              │
 │ License          │ MIT                                  │
 └──────────────────┴──────────────────────────────────────┘
 ```
 
 ---
 
+## Changelog v1.1.0
+
+### Architecture Change
+- **LXC/LXD → Podman**: Rootless, daemonless, no sudo required
+- **Traefik/Caddy → Embedded Go proxy**: Zero dependency, ~10MB RAM
+- **Self-signed cert → Let's Encrypt**: Real wildcard cert via ACME DNS-01
+- **No Lando support → Full Lando migration**: Parse `.lando.yml` automatically
+
+### New Features
+- ✅ Embedded Go reverse proxy (HTTP :80 + HTTPS :443)
+- ✅ Auto-generated wildcard cert (`*.tavp.my.id`) via lego + Cloudflare
+- ✅ Dynamic tooling commands (artisan, composer, npm, etc.)
+- ✅ Web panel (`tavpbox panel`) with Tailwind + Alpine.js
+- ✅ Full Lando migration (services, tooling, env, proxy, build/run)
+- ✅ Auto-route update on rebuild
+- ✅ Config management (`tavpbox config set/get/list`)
+- ✅ Multi-platform (Windows, macOS, Linux)
+
+### Files Changed
+- `internal/config/lando.go` — Lando YAML parser + converter
+- `internal/proxy/proxy.go` — Embedded Go reverse proxy
+- `internal/certs/certs.go` — Let's Encrypt ACME via lego
+- `internal/podman/client.go` — Podman wrapper
+- `cmd/create.go` — Container creation + recipe install
+- `cmd/tooling.go` — Dynamic tooling commands
+- `cmd/panel.go` — Web panel server
+- `cmd/proxy.go` — Proxy management
+- `cmd/config.go` — Configuration management
+- `cmd/setup.go` — Dependencies + cert setup
+- `internal/api/` — REST API + embedded panel
+
+---
+
 ## Install
 
-### Prerequisites
+### Option 1: Download Binary
 
-Install [Podman Desktop](https://podman-desktop.io) first, then:
+Download from [GitHub Releases](https://github.com/tavp-stack/tavpbox/releases):
 
+| Platform | File |
+|----------|------|
+| Windows | `tavpbox-windows-amd64.exe` |
+| macOS (Intel) | `tavpbox-darwin-amd64` |
+| macOS (M1/M2) | `tavpbox-darwin-arm64` |
+| Linux (x64) | `tavpbox-linux-amd64` |
+| Linux (ARM) | `tavpbox-linux-arm64` |
+
+Add to PATH:
 ```powershell
 # Windows
-podman machine init
-podman machine start
+move tavpbox.exe C:\Users\<you>\AppData\Local\tavpbox\
 
-# macOS
-podman machine init
-podman machine start
-
-# Linux
-sudo apt install podman   # or: sudo dnf install podman
+# macOS/Linux
+sudo mv tavpbox /usr/local/bin/
 ```
 
-### Install TAVPBox
-
-**Option 1: Download binary**
-
-Download from [Releases](https://github.com/tavp-stack/tavpbox/releases) and add to PATH.
-
-**Option 2: Build from source**
+### Option 2: Build from Source
 
 ```bash
 git clone https://github.com/tavp-stack/tavpbox.git
 cd tavpbox
 go build -o tavpbox .
-# Move to PATH:
-# Windows: move tavpbox.exe C:\Users\<you>\AppData\Local\tavpbox\
-# macOS/Linux: sudo mv tavpbox /usr/local/bin/
 ```
 
-**Option 3: Go install**
+### Option 3: Go Install
 
 ```bash
 go install github.com/tavp-stack/tavpbox@latest
@@ -65,31 +95,53 @@ go install github.com/tavp-stack/tavpbox@latest
 
 ---
 
-## Quick Start
+## Quick Start (5 Menit)
 
-```bash
-# 1. Init project
-cd ~/projects/my-app
-tavpbox init
+### Step 1: Setup
 
-# 2. Create container (installs nginx, PHP, services)
-tavpbox create
-
-# 3. Open in browser
-# http://my-app.tavp.my.id
-
-# 4. SSH into container
-tavpbox ssh
-
-# 5. Run tooling commands
-tavpbox artisan migrate
-tavpbox composer install
-tavpbox npm run dev
+```powershell
+tavpbox setup
 ```
+
+Yang dilakukan:
+- ✅ Check/install Podman
+- ✅ Generate wildcard cert `*.tavp.my.id` (via Let's Encrypt)
+- ✅ Cert di-embed di binary
+
+### Step 2: Config Cloudflare (sekali aja)
+
+```powershell
+tavpbox config set cloudflare_token <your-token>
+tavpbox config set cloudflare_zone <your-zone-id>
+```
+
+Buat token di: https://dash.cloudflare.com/profile/api-tokens
+- Permission: Zone → DNS → Edit
+- Zone: `tavp.my.id`
+
+### Step 3: Project Baru
+
+```powershell
+cd ~/projects/my-app
+tavpbox init          # Generate .tavpbox.yml
+tavpbox create        # Create container + install services
+```
+
+Buka browser: `https://my-app.tavp.my.id`
+
+### Step 4: Migrasi dari Lando
+
+```powershell
+cd ~/lando-project    # Sudah ada .lando.yml
+tavpbox info          # Preview config
+tavpbox create        # Create container
+```
+
+Buka browser: `https://project.tavp.my.id`
 
 ---
 
-## Commands
+## Semua Commands
 
 ### Lifecycle
 
@@ -127,12 +179,29 @@ tavpbox npm run dev
 |---------|-------------|
 | `tavpbox panel` | Start web panel at http://localhost:8080 |
 | `tavpbox panel -p 3000` | Start on custom port |
+| `tavpbox panel:stop` | Stop panel |
+
+### Proxy
+
+| Command | Description |
+|---------|-------------|
+| `tavpbox proxy:start` | Start reverse proxy |
+| `tavpbox proxy:stop` | Stop reverse proxy |
+| `tavpbox proxy:status` | Show proxy status + routes |
+
+### Config
+
+| Command | Description |
+|---------|-------------|
+| `tavpbox config list` | List all configuration |
+| `tavpbox config set <key> <value>` | Set config value |
+| `tavpbox config get <key>` | Get config value |
 
 ### Setup
 
 | Command | Description |
 |---------|-------------|
-| `tavpbox setup` | Install dependencies (Podman) |
+| `tavpbox setup` | Install dependencies + generate cert |
 | `tavpbox version` | Show version |
 
 ---
@@ -153,6 +222,9 @@ services:
 env:
   APP_NAME: "My Project"
   APP_ENV: local
+  DB_DATABASE: my_database
+  DB_USERNAME: my_user
+  DB_PASSWORD: my_password
 tooling:
   artisan:
     cmd: php artisan
@@ -164,6 +236,48 @@ tooling:
     cmd: php artisan test
 ram: 512MB
 cpu: 1
+```
+
+---
+
+## Lando Migration
+
+TAVPBox mendukung penuh `.lando.yml`. Cukup jalankan `tavpbox create` di folder yang ada `.lando.yml`.
+
+### Yang di-support:
+- ✅ `recipe` (lamp, laravel, dll)
+- ✅ `services` (mariadb, mysql, redis, mailpit, phpmyadmin, dll)
+- ✅ `tooling` (artisan, composer, npm, mysql, dll)
+- ✅ `proxy` (*.lndo.site → *.tavp.my.id)
+- ✅ `events.post-start` (build/run commands)
+- ✅ `services.*.overrides.environment` (env vars)
+- ✅ `services.*.creds` (DB credentials)
+
+### Contoh migrasi:
+
+```powershell
+# Project Lando
+cd ~/kos-kosan.id
+cat .lando.yml
+# name: koskosan
+# recipe: lamp
+# services:
+#   appserver: { type: php:8.4 }
+#   database: { type: mysql:8.0, creds: { user: koskosan } }
+#   redis: { type: redis:7 }
+#   mailpit: { type: mailpit }
+# proxy:
+#   appserver: [koskosan.lndo.site]
+
+# Migrasi ke TAVPBox
+tavpbox info
+# Recipe:    laravel
+# Services:  mariadb, redis, mailpit
+# Domain:    http://koskosan.tavp.my.id
+# Database:  koskosan/koskosan/koskosan
+
+tavpbox create
+# https://koskosan.tavp.my.id → jalan!
 ```
 
 ---
@@ -202,43 +316,33 @@ cpu: 1
 
 ---
 
-## Tooling
+## HTTPS
 
-Tooling commands run inside the container. Define them in `.tavpbox.yml`:
+TAVPBox auto-generate wildcard cert `*.tavp.my.id` via Let's Encrypt (ACME DNS-01 dengan Cloudflare).
 
-```yaml
-tooling:
-  artisan:
-    cmd: php artisan
-  composer:
-    cmd: composer
-  npm:
-    cmd: npm
-  test:
-    cmd: php artisan test
+### Setup:
+```powershell
+# 1. Set Cloudflare credentials
+tavpbox config set cloudflare_token <token>
+tavpbox config set cloudflare_zone <zone_id>
+
+# 2. Generate cert
+tavpbox setup
 ```
 
-Then use them directly:
+### Auto-renew:
+Cert expired ~90 hari. Jalankan `tavpbox setup` sebelum expired untuk renew.
 
-```bash
-tavpbox artisan migrate
-tavpbox composer install
-tavpbox npm run dev
-tavpbox test
+### Manual renew:
+```powershell
+tavpbox setup
 ```
-
-Default tooling is auto-detected from recipe:
-- **tavp/laravel**: artisan, composer, npm, npx, php, test
-- **php**: composer, php, test
-- **node**: npm, npx, yarn, pnpm, node
-- **go**: go
-- **python**: python, pip, pytest
 
 ---
 
 ## Web Panel
 
-```bash
+```powershell
 tavpbox panel
 # Opens http://localhost:8080
 ```
@@ -257,15 +361,42 @@ Features:
 ```
 tavpbox (Go binary)
 ├── CLI (cobra)
+│   ├── init, create, start, stop, restart, destroy, rebuild
+│   ├── ssh, list, info, logs
+│   ├── tooling (dynamic subcommands)
+│   ├── panel (web UI)
+│   ├── proxy (reverse proxy management)
+│   ├── config (configuration)
+│   └── setup (dependencies + cert)
 ├── Podman client (exec wrapper)
-├── Traefik (reverse proxy container)
-│   ├── *.tavp.my.id → container:80
-│   └── Auto-HTTPS via ACME
+├── Embedded Go proxy
+│   ├── HTTP :80
+│   ├── HTTPS :443
+│   └── Dynamic routes (routes.json)
+├── Let's Encrypt ACME (lego + Cloudflare)
 ├── Service library (15 services)
 ├── Recipe library (7 recipes)
+├── Lando parser (.lando.yml)
 ├── Plugin engine (~/.tavpbox/plugins/)
-├── API server (REST + embedded panel)
-└── Tooling engine (dynamic subcommands)
+└── API server (REST + embedded panel)
+```
+
+---
+
+## Multi-Platform
+
+| Platform | Architecture | Binary |
+|----------|-------------|--------|
+| Windows | amd64 | `tavpbox-windows-amd64.exe` |
+| macOS | amd64 | `tavpbox-darwin-amd64` |
+| macOS | arm64 (M1/M2) | `tavpbox-darwin-arm64` |
+| Linux | amd64 | `tavpbox-linux-amd64` |
+| Linux | arm64 | `tavpbox-linux-arm64` |
+
+Cross-compile:
+```bash
+make cross
+# Output: dist/tavpbox-{os}-{arch}
 ```
 
 ---
@@ -281,6 +412,37 @@ make cross
 
 # Run
 ./tavpbox version
+
+# Test
+go test ./...
+```
+
+---
+
+## Troubleshooting
+
+### Podman not found
+```powershell
+tavpbox setup
+# Atau install manual: https://podman-desktop.io
+```
+
+### HTTPS cert error
+```powershell
+tavpbox setup
+# Pastikan Cloudflare token + zone ID sudah diset
+```
+
+### Container already exists
+```powershell
+tavpbox destroy
+tavpbox create
+```
+
+### Port already in use
+```powershell
+tavpbox proxy:stop
+tavpbox proxy:start
 ```
 
 ---
@@ -294,4 +456,6 @@ MIT
 ## Links
 
 - **GitHub**: https://github.com/tavp-stack/tavpbox
+- **Gitea**: https://git.glotama.com/tavp-stack/tavp-box
 - **Issues**: https://github.com/tavp-stack/tavpbox/issues
+- **Docs**: https://docs.tavp.web.id/guide/tavpbox.html
