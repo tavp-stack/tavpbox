@@ -142,6 +142,15 @@ tavpbox create
 | `tavpbox config set <key> <value>` | Set config value |
 | `tavpbox config get <key>` | Get config value |
 
+### Image
+
+| Command | Description |
+|---------|-------------|
+| `tavpbox image build` | Build custom image from current container |
+| `tavpbox image push <image>` | Push image to registry |
+| `tavpbox image pull <image>` | Pull image from registry |
+| `tavpbox image list` | List local images |
+
 | `tavpbox version` | Show version |
 
 ---
