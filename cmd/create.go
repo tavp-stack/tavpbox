@@ -197,7 +197,17 @@ apt-get update -qq && apt-get install -y -qq --no-install-recommends \
   nginx php8.3-fpm php8.3-cli php8.3-mbstring php8.3-xml \
   php8.3-curl php8.3-zip php8.3-bcmath php8.3-intl php8.3-mysql \
   php8.3-pgsql php8.3-redis php8.3-sqlite3 php8.3-gd \
-  composer curl wget git unzip
+  php-pear php8.3-dev gcc make composer curl wget git unzip
+
+# Install Phalcon
+pecl channel-update pecl.php.net 2>/dev/null
+pecl install phalcon 2>/dev/null
+echo "extension=phalcon.so" > /etc/php/8.3/mods-available/phalcon.ini
+phpenmod phalcon 2>/dev/null || true
+
+# Install Node.js
+curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+apt-get install -y -qq --no-install-recommends nodejs
 
 cat > /etc/nginx/sites-available/default <<'NGINX'
 server {
@@ -227,6 +237,7 @@ apt-get update -qq && apt-get install -y -qq --no-install-recommends \
   php8.3-pgsql php8.3-redis php8.3-sqlite3 php8.3-gd \
   composer curl wget git unzip
 
+# Install Node.js
 curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
 apt-get install -y -qq --no-install-recommends nodejs
 
