@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.2.2
+
+### Fix
+- setup: restart proxy setelah generate cert (cert baru langsung dipake)
+- Proxy auto-reload routes.json kalau file berubah
+
 ## v1.2.1
 
 ### Fix

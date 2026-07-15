@@ -48,12 +48,17 @@ var setupCmd = &cobra.Command{
 			fmt.Println("  > Run: tavpbox config set cloudflare_zone <zone_id>")
 		} else {
 			fmt.Println("  Generating wildcard cert via Let's Encrypt...")
-			if _, _, err := certs.GenerateWildcardCert("tavp.my.id", globalCfg.CloudflareToken); err != nil {
-				fmt.Printf("  ⚠ Cert generation failed: %v\n", err)
-			} else {
-				fmt.Println("  ✓ Wildcard cert generated (*.tavp.my.id)")
-				fmt.Println("  Cert expires in ~90 days, auto-renew on next tavpbox setup")
-			}
+		if _, _, err := certs.GenerateWildcardCert("tavp.my.id", globalCfg.CloudflareToken); err != nil {
+			fmt.Printf("  ⚠ Cert generation failed: %v\n", err)
+		} else {
+			fmt.Println("  ✓ Wildcard cert generated (*.tavp.my.id)")
+			fmt.Println("  Cert expires in ~90 days, auto-renew on next tavpbox setup")
+
+			// Restart proxy to pick up new cert
+			fmt.Println("  Restarting proxy...")
+			restartProxy()
+			fmt.Println("  ✓ Proxy restarted with new cert")
+		}
 		}
 
 		fmt.Println("\n✓ Setup complete! Run: tavpbox init")
