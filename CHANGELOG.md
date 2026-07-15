@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.2.1
+
+### Fix
+- Phalcon + Node.js diinstall otomatis untuk tavp recipe
+- Nginx fastcgi_pass pakai unix socket (bukan TCP 9000)
+- Sync recipes.go dan create.go
+
 ## v1.2.0
 
 ### Optimization
