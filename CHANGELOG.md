@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.3.2
+
+### Fix
+- Auto-start services on container restart
+- Startup script (/usr/local/bin/tavpbox-startup.sh) created after install
+- Services persist across host restart (nginx, php-fpm, mariadb, redis, mailpit)
+- Container gak perlu re-install services setelah host restart
+
 ## v1.3.1
 
 ### Fix
