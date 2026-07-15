@@ -8,9 +8,8 @@ mysqld --user=mysql --datadir=/var/lib/mysql &
 # Start Redis
 redis-server --daemonize yes 2>/dev/null || true
 
-# Start PHP-FPM
-mkdir -p /run/php
-/usr/sbin/php-fpm8.2 2>/dev/null || service php8.2-fpm start 2>/dev/null || true
+# Start PHP-FPM (official image uses docker-php-entrypoint)
+php-fpm &
 
 # Start Nginx
 nginx 2>/dev/null || true
