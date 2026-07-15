@@ -83,6 +83,14 @@ var createCmd = &cobra.Command{
 			}
 		}
 
+		// Create startup script for auto-restart
+		fmt.Printf("  Creating startup script...\n")
+		startupScript := buildStartupScript(cfg)
+		client.Exec(cname, "bash", "-c", fmt.Sprintf("cat > /usr/local/bin/tavpbox-startup.sh << 'STARTEOF'\n%s\nSTARTEOF\nchmod +x /usr/local/bin/tavpbox-startup.sh", startupScript))
+
+		// Run startup script now
+		client.Exec(cname, "bash", "/usr/local/bin/tavpbox-startup.sh")
+
 		// Execute Lando build/run commands if present
 		if buildCmds, ok := cfg.Env["LANDO_BUILD_CMDS"]; ok && buildCmds != "" {
 			fmt.Printf("  Running build commands...\n")
@@ -340,4 +348,36 @@ chmod 644 /var/www/html/adminer/index.php /var/www/html/adminer/adminer.css`,
 		return err
 	}
 	return nil
+}
+
+// buildStartupScript creates a script that starts all installed services
+func buildStartupScript(cfg *config.ProjectConfig) string {
+	script := "#!/bin/bash\n# TAVPBox auto-start services\n\n"
+
+	// Start nginx
+	script += "nginx 2>/dev/null || true\n"
+
+	// Start PHP-FPM
+	script += "service php8.3-fpm start 2>/dev/null || true\n"
+
+	// Start services based on config
+	if cfg.Services["mariadb"].Enabled || cfg.Services["mysql"].Enabled {
+		script += "mkdir -p /run/mysqld && chown mysql:mysql /run/mysqld\n"
+		script += "mysqld --user=mysql --datadir=/var/lib/mysql &\n"
+	}
+	if cfg.Services["postgres"].Enabled {
+		script += "su - postgres -c 'pg_ctlcluster $(pg_lsclusters -h | head -1 | awk \"{print \\$1, \\$2}\") start' 2>/dev/null || true\n"
+	}
+	if cfg.Services["redis"].Enabled {
+		script += "redis-server --daemonize yes 2>/dev/null || true\n"
+	}
+	if cfg.Services["mailpit"].Enabled || cfg.Services["mailhog"].Enabled {
+		script += "nohup /usr/local/bin/mailpit --listen 0.0.0.0:8025 --smtp 0.0.0.0:1025 > /var/log/mailpit.log 2>&1 &\n"
+	}
+
+	// Keep container alive
+	script += "\n# Keep container running\n"
+	script += "while true; do sleep 3600; done\n"
+
+	return script
 }

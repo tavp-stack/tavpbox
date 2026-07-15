@@ -98,8 +98,8 @@ func (c *Client) Create(name, image string, ports []string, env map[string]strin
 	// Add image
 	args = append(args, image)
 
-	// Keep container running
-	args = append(args, "sleep", "infinity")
+	// Keep container running with startup script
+	args = append(args, "bash", "-c", "while true; do sleep 3600; done")
 
 	_, err := c.run(args...)
 	return err
