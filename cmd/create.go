@@ -384,6 +384,19 @@ systemctl start nginx 2>/dev/null || service nginx start
 }
 
 func installService(client *podman.Client, cname, svcName string) error {
+	// Check if service is already installed (pre-built image)
+	checkCmd := map[string]string{
+		"mariadb": "command -v mysqld",
+		"mysql":   "command -v mysqld",
+		"redis":   "command -v redis-server",
+		"mailpit": "test -f /usr/local/bin/mailpit",
+	}
+	if cmd, ok := checkCmd[svcName]; ok {
+		if _, err := client.Exec(cname, "bash", "-c", cmd); err == nil {
+			return nil // already installed
+		}
+	}
+
 	scripts := map[string]string{
 		"mariadb": `export DEBIAN_FRONTEND=noninteractive
 apt-get install -y -qq mariadb-server mariadb-client 2>/dev/null

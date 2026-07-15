@@ -1,7 +1,7 @@
 FROM debian:12
 
 LABEL org.opencontainers.image.source="https://github.com/tavp-stack/tavpbox"
-LABEL org.opencontainers.image.description="TAVPBox PHP base image with Nginx, PHP 8.3, Node.js 20, Composer, Phalcon"
+LABEL org.opencontainers.image.description="TAVPBox PHP base image with Nginx, PHP 8.2, Node.js 20, Composer, Phalcon, MariaDB, Redis, Mailpit"
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -14,6 +14,8 @@ RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
     gcc make \
     composer \
     curl wget git unzip \
+    mariadb-server mariadb-client \
+    redis-server \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Phalcon
@@ -27,6 +29,9 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y -qq --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Mailpit
+RUN curl -sL https://github.com/axllent/mailpit/releases/download/v1.21.1/mailpit-linux-amd64.tar.gz | tar xz -C /usr/local/bin/
+
 # Configure nginx
 COPY nginx.conf /etc/nginx/sites-available/default
 
@@ -35,3 +40,4 @@ COPY start.sh /usr/local/bin/tavpbox-start.sh
 RUN chmod +x /usr/local/bin/tavpbox-start.sh
 
 CMD ["/usr/local/bin/tavpbox-start.sh"]
+
