@@ -123,6 +123,10 @@ var createCmd = &cobra.Command{
 				p.AddRoute("adminer."+domain, "127.0.0.1", adminerPort)
 			}
 		}
+		if cfg.Services["phpmyadmin"].Enabled {
+			// phpMyAdmin runs on port 80 inside container via nginx
+			p.AddRoute("phpmyadmin."+domain, "127.0.0.1", hostPort)
+		}
 
 		// Ensure HTTPS cert exists
 		certs.GetWildcardCert("tavp.my.id")
@@ -448,6 +452,9 @@ nohup /usr/local/bin/mailpit --listen 0.0.0.0:8025 --smtp 0.0.0.0:1025 > /var/lo
 curl -sL https://www.adminer.org/latest.php -o /var/www/html/adminer/index.php
 curl -sL https://www.adminer.org/download/v5.4.4/designs/haeckel/adminer.css -o /var/www/html/adminer/adminer.css
 chmod 644 /var/www/html/adminer/index.php /var/www/html/adminer/adminer.css`,
+		"phpmyadmin": `export DEBIAN_FRONTEND=noninteractive
+apt-get install -y -qq phpmyadmin 2>/dev/null
+ln -sf /usr/share/phpmyadmin /var/www/html/pma 2>/dev/null || true`,
 	}
 
 	if script, ok := scripts[svcName]; ok {
