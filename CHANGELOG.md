@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.2.0
+
+### Optimization
+- Recipe install 2x faster (--no-install-recommends, removed php-pear php8.3-dev gcc make)
+- Proxy auto-reload routes (watch routes.json every 2s)
+- Proxy auto-start before adding routes
+- Webroot auto-detect from current directory
+
 ## v1.1.0
 
 ### Architecture Change
