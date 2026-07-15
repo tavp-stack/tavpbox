@@ -1,0 +1,65 @@
+name: Auto-Renew Cert
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # Every Sunday at midnight
+  workflow_dispatch:  # Manual trigger
+
+permissions:
+  contents: write
+
+jobs:
+  renew:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Check cert expiry
+        id: check
+        run: |
+          if [ -f "internal/certs/embedded/tavp.my.id.pem" ]; then
+            EXPIRY=$(openssl x509 -enddate -noout -in internal/certs/embedded/tavp.my.id.pem | cut -d= -f2)
+            EXPIRY_EPOCH=$(date -d "$EXPIRY" +%s)
+            NOW_EPOCH=$(date +%s)
+            DAYS_LEFT=$(( (EXPIRY_EPOCH - NOW_EPOCH) / 86400 ))
+            echo "days_left=$DAYS_LEFT" >> $GITHUB_OUTPUT
+            echo "Cert expires in $DAYS_LEFT days"
+          else
+            echo "days_left=0" >> $GITHUB_OUTPUT
+            echo "No cert found"
+          fi
+
+      - name: Generate new cert
+        if: steps.check.outputs.days_left < 30
+        env:
+          CLOUDFLARE_TOKEN: ${{ secrets.CLOUDFLARE_TOKEN }}
+        run: |
+          # Install lego
+          go install github.com/go-acme/lego/v4/cmd/lego@latest
+          
+          # Generate cert
+          lego --dns cloudflare --domains "*.tavp.my.id" --domains "tavp.my.id" \
+            --email admin@tavp.my.id --accept-tos run
+          
+          # Copy to embedded directory
+          mkdir -p internal/certs/embedded
+          cp .lego/certificates/*.tavp.my.id.crt internal/certs/embedded/tavp.my.id.pem
+          cp .lego/certificates/*.tavp.my.id.key internal/certs/embedded/tavp.my.id-key.pem
+
+      - name: Build and release
+        if: steps.check.outputs.days_left < 30
+        run: |
+          VERSION="v$(date +%Y.%m.%d)"
+          make cross VERSION=$VERSION
+          
+          # Create release
+          gh release create $VERSION dist/* \
+            --title "Auto-renew cert $VERSION" \
+            --notes "Wildcard cert *.tavp.my.id renewed. Expires in ~90 days." \
+            --repo tavp-stack/tavpbox
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
