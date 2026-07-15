@@ -142,20 +142,20 @@ var createCmd = &cobra.Command{
 		return nil
 	},
 }
-
 func getImage(cfg *config.ProjectConfig, globalCfg *config.GlobalConfig) string {
 	if cfg.Image != "" {
 		return cfg.Image
 	}
+
 	switch cfg.Recipe {
 	case "tavp", "php", "laravel":
-		return "docker.io/library/ubuntu:24.04"
+		return "ghcr.io/tavp-stack/tavpbox-php:latest"
 	case "node":
-		return "docker.io/library/node:20-alpine"
+		return "ghcr.io/tavp-stack/tavpbox-node:latest"
 	case "go":
-		return "docker.io/library/golang:1.22-alpine"
+		return "ghcr.io/tavp-stack/tavpbox-go:latest"
 	case "python":
-		return "docker.io/library/python:3.12-slim"
+		return "ghcr.io/tavp-stack/tavpbox-python:latest"
 	default:
 		if globalCfg.DefaultImage != "" {
 			return globalCfg.DefaultImage
@@ -200,7 +200,32 @@ func installRecipe(client *podman.Client, cname string, cfg *config.ProjectConfi
 }
 
 func installPHPServer(client *podman.Client, cname string) error {
-	_, err := client.Exec(cname, "bash", "-c", `
+	// Check if packages are already installed (pre-built image)
+	_, err := client.Exec(cname, "bash", "-c", "command -v nginx && command -v php-fpm8.3")
+	if err == nil {
+		// Already installed, just configure and start
+		_, err = client.Exec(cname, "bash", "-c", `
+cat > /etc/nginx/sites-available/default <<'NGINX'
+server {
+    listen 80 default_server;
+    root /var/www/html;
+    index index.php index.html;
+    location / { try_files $uri $uri/ /index.php?$query_string; }
+    location ~ \.php$ {
+        fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+    location ~ /\.ht { deny all; }
+}
+NGINX
+service php8.3-fpm start 2>/dev/null; service nginx start 2>/dev/null
+`)
+		return err
+	}
+
+	// Not pre-built, install from scratch
+	_, err = client.Exec(cname, "bash", "-c", `
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y -qq --no-install-recommends nginx php8.3-fpm php8.3-cli php8.3-mbstring php8.3-xml php8.3-curl php8.3-zip php8.3-bcmath php8.3-intl php8.3-mysql php8.3-gd composer curl wget git unzip
@@ -231,7 +256,31 @@ service php8.3-fpm start 2>/dev/null; service nginx start 2>/dev/null
 }
 
 func installLaravel(client *podman.Client, cname string) error {
-	_, err := client.Exec(cname, "bash", "-c", `
+	// Check if packages are already installed (pre-built image)
+	_, err := client.Exec(cname, "bash", "-c", "command -v nginx && command -v php-fpm8.3")
+	if err == nil {
+		_, err = client.Exec(cname, "bash", "-c", `
+cat > /etc/nginx/sites-available/default <<'NGINX'
+server {
+    listen 80 default_server;
+    root /var/www/html/public;
+    index index.php;
+    location / { try_files $uri $uri/ /index.php?$query_string; }
+    location ~ \.php$ {
+        fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+    location ~ /\.ht { deny all; }
+}
+NGINX
+service php8.3-fpm start 2>/dev/null; service nginx start 2>/dev/null
+`)
+		return err
+	}
+
+	// Not pre-built, install from scratch
+	_, err = client.Exec(cname, "bash", "-c", `
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y -qq --no-install-recommends nginx php8.3-fpm php8.3-cli php8.3-mbstring php8.3-xml php8.3-curl php8.3-zip php8.3-bcmath php8.3-intl php8.3-mysql php8.3-gd composer curl wget git unzip
@@ -259,7 +308,30 @@ service php8.3-fpm start 2>/dev/null; service nginx start 2>/dev/null
 }
 
 func installNode(client *podman.Client, cname string) error {
-	_, err := client.Exec(cname, "bash", "-c", `
+	// Check if packages are already installed (pre-built image)
+	_, err := client.Exec(cname, "bash", "-c", "command -v nginx && command -v node")
+	if err == nil {
+		_, err = client.Exec(cname, "bash", "-c", `
+cat > /etc/nginx/http.d/default.conf <<'NGINX'
+server {
+    listen 80;
+    root /var/www/html;
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+    }
+}
+NGINX
+nginx 2>/dev/null || true
+`)
+		return err
+	}
+
+	// Not pre-built, install from scratch
+	_, err = client.Exec(cname, "bash", "-c", `
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y -qq --no-install-recommends nginx
