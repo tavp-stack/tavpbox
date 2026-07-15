@@ -134,6 +134,15 @@ var createCmd = &cobra.Command{
 		fmt.Printf("  Direct:  http://localhost:%d\n", hostPort)
 		fmt.Printf("  HTTP:    http://%s\n", domain)
 		fmt.Printf("  HTTPS:   https://%s\n", domain)
+		if cfg.Services["mailpit"].Enabled || cfg.Services["mailhog"].Enabled {
+			fmt.Printf("  Mailpit: http://mailpit.%s\n", domain)
+		}
+		if cfg.Services["adminer"].Enabled {
+			fmt.Printf("  Adminer: http://adminer.%s\n", domain)
+		}
+		if cfg.Services["phpmyadmin"].Enabled {
+			fmt.Printf("  phpMyAdmin: http://phpmyadmin.%s\n", domain)
+		}
 		if ip != "" {
 			fmt.Printf("  IP:      %s\n", ip)
 		}
@@ -185,30 +194,38 @@ func getPorts(cfg *config.ProjectConfig) []string {
 func installRecipe(client *podman.Client, cname string, cfg *config.ProjectConfig) error {
 	switch cfg.Recipe {
 	case "tavp", "php":
-		return installPHPServer(client, cname)
+		return installPHPServer(client, cname, cfg)
 	case "laravel":
-		return installLaravel(client, cname)
+		return installLaravel(client, cname, cfg)
 	case "node":
-		return installNode(client, cname)
+		return installNode(client, cname, cfg)
 	case "go":
-		return installGo(client, cname)
+		return installGo(client, cname, cfg)
 	case "python":
-		return installPython(client, cname)
+		return installPython(client, cname, cfg)
 	default:
 		return nil
 	}
 }
 
-func installPHPServer(client *podman.Client, cname string) error {
+func installPHPServer(client *podman.Client, cname string, cfg *config.ProjectConfig) error {
+	webroot := "/var/www/html"
+	if cfg.Webroot != "" && cfg.Webroot != "." {
+		webroot = "/var/www/html/" + cfg.Webroot
+	}
+
 	// Check if packages are already installed (pre-built image)
 	_, err := client.Exec(cname, "bash", "-c", "command -v nginx && command -v php-fpm")
 	if err == nil {
 		// Already installed, just configure and start
-		_, err = client.Exec(cname, "bash", "-c", `
+		// Install Phalcon if missing
+		client.Exec(cname, "bash", "-c", "pecl install phalcon 2>/dev/null && echo 'extension=phalcon.so' > /usr/local/etc/php/conf.d/phalcon.ini || true")
+		_, err = client.Exec(cname, "bash", "-c", fmt.Sprintf(`
+mkdir -p /run/php
 cat > /etc/nginx/sites-available/default <<'NGINX'
 server {
     listen 80 default_server;
-    root /var/www/html;
+    root %s;
     index index.php index.html;
     location / { try_files $uri $uri/ /index.php?$query_string; }
     location ~ \.php$ {
@@ -219,10 +236,9 @@ server {
     location ~ /\.ht { deny all; }
 }
 NGINX
-mkdir -p /run/php
 php-fpm &
 nginx 2>/dev/null || true
-`)
+`, webroot))
 		return err
 	}
 
@@ -257,15 +273,21 @@ service php8.3-fpm start 2>/dev/null; service nginx start 2>/dev/null
 	return err
 }
 
-func installLaravel(client *podman.Client, cname string) error {
+func installLaravel(client *podman.Client, cname string, cfg *config.ProjectConfig) error {
+	webroot := "/var/www/html"
+	if cfg.Webroot != "" && cfg.Webroot != "." {
+		webroot = "/var/www/html/" + cfg.Webroot
+	}
+
 	// Check if packages are already installed (pre-built image)
 	_, err := client.Exec(cname, "bash", "-c", "command -v nginx && command -v php-fpm")
 	if err == nil {
-		_, err = client.Exec(cname, "bash", "-c", `
+		_, err = client.Exec(cname, "bash", "-c", fmt.Sprintf(`
+mkdir -p /run/php
 cat > /etc/nginx/sites-available/default <<'NGINX'
 server {
     listen 80 default_server;
-    root /var/www/html/public;
+    root %s;
     index index.php;
     location / { try_files $uri $uri/ /index.php?$query_string; }
     location ~ \.php$ {
@@ -276,10 +298,9 @@ server {
     location ~ /\.ht { deny all; }
 }
 NGINX
-mkdir -p /run/php
 php-fpm &
 nginx 2>/dev/null || true
-`)
+`, webroot))
 		return err
 	}
 
@@ -311,7 +332,7 @@ service php8.3-fpm start 2>/dev/null; service nginx start 2>/dev/null
 	return err
 }
 
-func installNode(client *podman.Client, cname string) error {
+func installNode(client *podman.Client, cname string, cfg *config.ProjectConfig) error {
 	// Check if packages are already installed (pre-built image)
 	_, err := client.Exec(cname, "bash", "-c", "command -v nginx && command -v node")
 	if err == nil {
@@ -360,12 +381,12 @@ systemctl start nginx 2>/dev/null || service nginx start
 	return err
 }
 
-func installGo(client *podman.Client, cname string) error {
+func installGo(client *podman.Client, cname string, cfg *config.ProjectConfig) error {
 	_, err := client.Exec(cname, "bash", "-c", `apt-get update -qq && apt-get install -y -qq nginx curl`)
 	return err
 }
 
-func installPython(client *podman.Client, cname string) error {
+func installPython(client *podman.Client, cname string, cfg *config.ProjectConfig) error {
 	_, err := client.Exec(cname, "bash", "-c", `
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq

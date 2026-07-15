@@ -23,6 +23,11 @@ RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
 # Install PHP extensions (only missing ones)
 RUN docker-php-ext-install pdo_mysql pdo_pgsql gd zip
 
+# Install Phalcon
+RUN pecl channel-update pecl.php.net 2>/dev/null \
+    && pecl install phalcon 2>/dev/null || true \
+    && echo "extension=phalcon.so" > /usr/local/etc/php/conf.d/phalcon.ini
+
 # Install Composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
