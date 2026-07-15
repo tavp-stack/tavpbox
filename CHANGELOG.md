@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.4.1
+
+### Feature
+- Pakai pre-built images (ghcr.io/tavp-stack/tavpbox-*)
+- Skip apt-get jika packages udah ada di image
+- Recipe install instant jika pakai pre-built image
+- Fallback ke apt-get jika image gak pre-built
+
 ## v1.4.0
 
 ### Feature
