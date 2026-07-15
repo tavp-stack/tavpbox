@@ -57,6 +57,10 @@ func (p *Proxy) AddRoute(domain, ip string, port int) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
+	// Load existing routes from disk first
+	p.loadRoutesFromDisk()
+
+	// Remove existing route for this domain
 	var newRoutes []Route
 	for _, r := range p.routes {
 		if r.Domain != domain {
@@ -66,6 +70,17 @@ func (p *Proxy) AddRoute(domain, ip string, port int) {
 	newRoutes = append(newRoutes, Route{Domain: domain, IP: ip, Port: port})
 	p.routes = newRoutes
 	p.saveRoutes()
+}
+
+func (p *Proxy) loadRoutesFromDisk() {
+	data, err := os.ReadFile(p.routesFile())
+	if err != nil {
+		return
+	}
+	if string(data) == "null" || len(strings.TrimSpace(string(data))) == 0 {
+		return
+	}
+	json.Unmarshal(data, &p.routes)
 }
 
 func (p *Proxy) RemoveRoute(domain string) {
