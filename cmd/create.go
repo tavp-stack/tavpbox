@@ -124,10 +124,8 @@ var createCmd = &cobra.Command{
 			}
 		}
 		if cfg.Services["phpmyadmin"].Enabled {
-			pmaPort := client.GetHostPort(cname, "8080")
-			if pmaPort > 0 {
-				p.AddRoute("phpmyadmin."+domain, "127.0.0.1", pmaPort)
-			}
+			// phpMyAdmin accessible via /pma/ path on main app
+			p.AddRoute("phpmyadmin."+domain, "127.0.0.1", hostPort)
 		}
 		if cfg.Services["phpmyadmin"].Enabled {
 			// phpMyAdmin runs on port 80 inside container via nginx
@@ -468,23 +466,10 @@ curl -sL https://www.adminer.org/download/v5.4.4/designs/haeckel/adminer.css -o 
 chmod 644 /var/www/html/adminer/index.php /var/www/html/adminer/adminer.css`,
 		"phpmyadmin": `export DEBIAN_FRONTEND=noninteractive
 apt-get install -y -qq phpmyadmin 2>/dev/null
-ln -sf /usr/share/phpmyadmin /var/www/html/pma 2>/dev/null || true
-# Create separate nginx config for phpmyadmin on port 8080
-cat > /etc/nginx/sites-available/phpmyadmin <<'NGINX'
-server {
-    listen 8080 default_server;
-    root /usr/share/phpmyadmin;
-    index index.php;
-    location / { try_files $uri $uri/ /index.php?$query_string; }
-    location ~ \.php$ {
-        fastcgi_pass 127.0.0.1:9000;
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-        include fastcgi_params;
-    }
-}
-NGINX
-ln -sf /etc/nginx/sites-available/phpmyadmin /etc/nginx/sites-enabled/phpmyadmin 2>/dev/null || true
-nginx -s reload 2>/dev/null || true`,
+# Symlink ke webroot yang benar (bisa /var/www/html/public/pma untuk Laravel)
+mkdir -p /var/www/html/public
+ln -sf /usr/share/phpmyadmin /var/www/html/public/pma 2>/dev/null || true
+ln -sf /usr/share/phpmyadmin /var/www/html/pma 2>/dev/null || true`,
 	}
 
 	if script, ok := scripts[svcName]; ok {
