@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.3.0
+
+### Feature
+- Wildcard cert (*.tavp.my.id) embedded di binary
+- Auto-extract ke ~/.tavpbox/certs/ saat HTTPS request pertama
+- Developer gak perlu run `tavpbox setup`
+- Admin: `tavpbox setup` + `make cert` + `make release` untuk renew
+
 ## v1.2.2
 
 ### Fix
