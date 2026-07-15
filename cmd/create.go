@@ -201,22 +201,16 @@ func installRecipe(client *podman.Client, cname string, cfg *config.ProjectConfi
 
 func installPHPServer(client *podman.Client, cname string) error {
 	_, err := client.Exec(cname, "bash", "-c", `
-apt-get update -qq && apt-get install -y -qq --no-install-recommends \
-  nginx php8.3-fpm php8.3-cli php8.3-mbstring php8.3-xml \
-  php8.3-curl php8.3-zip php8.3-bcmath php8.3-intl php8.3-mysql \
-  php8.3-pgsql php8.3-redis php8.3-sqlite3 php8.3-gd \
-  php-pear php8.3-dev gcc make composer curl wget git unzip
-
-# Install Phalcon
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -qq
+apt-get install -y -qq --no-install-recommends nginx php8.3-fpm php8.3-cli php8.3-mbstring php8.3-xml php8.3-curl php8.3-zip php8.3-bcmath php8.3-intl php8.3-mysql php8.3-gd composer curl wget git unzip
+apt-get install -y -qq --no-install-recommends php-pear php8.3-dev gcc make
 pecl channel-update pecl.php.net 2>/dev/null
-pecl install phalcon 2>/dev/null
+pecl install phalcon 2>/dev/null || true
 echo "extension=phalcon.so" > /etc/php/8.3/mods-available/phalcon.ini
 phpenmod phalcon 2>/dev/null || true
-
-# Install Node.js
 curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
 apt-get install -y -qq --no-install-recommends nodejs
-
 cat > /etc/nginx/sites-available/default <<'NGINX'
 server {
     listen 80 default_server;
@@ -231,7 +225,6 @@ server {
     location ~ /\.ht { deny all; }
 }
 NGINX
-
 service php8.3-fpm start 2>/dev/null; service nginx start 2>/dev/null
 `)
 	return err
@@ -239,13 +232,9 @@ service php8.3-fpm start 2>/dev/null; service nginx start 2>/dev/null
 
 func installLaravel(client *podman.Client, cname string) error {
 	_, err := client.Exec(cname, "bash", "-c", `
-apt-get update -qq && apt-get install -y -qq --no-install-recommends \
-  nginx php8.3-fpm php8.3-cli php8.3-mbstring php8.3-xml \
-  php8.3-curl php8.3-zip php8.3-bcmath php8.3-intl php8.3-mysql \
-  php8.3-pgsql php8.3-redis php8.3-sqlite3 php8.3-gd \
-  composer curl wget git unzip
-
-# Install Node.js
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -qq
+apt-get install -y -qq --no-install-recommends nginx php8.3-fpm php8.3-cli php8.3-mbstring php8.3-xml php8.3-curl php8.3-zip php8.3-bcmath php8.3-intl php8.3-mysql php8.3-gd composer curl wget git unzip
 curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
 apt-get install -y -qq --no-install-recommends nodejs
 
@@ -271,7 +260,9 @@ service php8.3-fpm start 2>/dev/null; service nginx start 2>/dev/null
 
 func installNode(client *podman.Client, cname string) error {
 	_, err := client.Exec(cname, "bash", "-c", `
-apt-get update -qq && apt-get install -y -qq nginx
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -qq
+apt-get install -y -qq --no-install-recommends nginx
 npm install -g yarn pnpm
 
 cat > /etc/nginx/sites-available/default <<'NGINX'
@@ -300,7 +291,9 @@ func installGo(client *podman.Client, cname string) error {
 
 func installPython(client *podman.Client, cname string) error {
 	_, err := client.Exec(cname, "bash", "-c", `
-apt-get update -qq && apt-get install -y -qq nginx python3 python3-pip python3-venv curl
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -qq
+apt-get install -y -qq --no-install-recommends nginx python3 python3-pip python3-venv curl
 
 cat > /etc/nginx/sites-available/default <<'NGINX'
 server {
@@ -320,20 +313,24 @@ systemctl start nginx 2>/dev/null || service nginx start
 
 func installService(client *podman.Client, cname, svcName string) error {
 	scripts := map[string]string{
-		"mariadb": `apt-get install -y -qq mariadb-server mariadb-client 2>/dev/null
+		"mariadb": `export DEBIAN_FRONTEND=noninteractive
+apt-get install -y -qq mariadb-server mariadb-client 2>/dev/null
 mkdir -p /run/mysqld && chown mysql:mysql /run/mysqld
 mysqld --user=mysql --datadir=/var/lib/mysql &
 sleep 3
 mysql -u root -e "CREATE DATABASE IF NOT EXISTS app; CREATE USER IF NOT EXISTS 'app'@'localhost' IDENTIFIED BY 'app'; GRANT ALL ON app.* TO 'app'@'localhost'; FLUSH PRIVILEGES;" 2>/dev/null || true`,
-		"mysql": `apt-get install -y -qq mysql-server mysql-client 2>/dev/null
+		"mysql": `export DEBIAN_FRONTEND=noninteractive
+apt-get install -y -qq mysql-server mysql-client 2>/dev/null
 mkdir -p /run/mysqld && chown mysql:mysql /run/mysqld
 mysqld --user=mysql &
 sleep 3`,
-		"postgres": `apt-get install -y -qq postgresql postgresql-client 2>/dev/null
+		"postgres": `export DEBIAN_FRONTEND=noninteractive
+apt-get install -y -qq postgresql postgresql-client 2>/dev/null
 su - postgres -c "pg_ctlcluster $(pg_lsclusters -h | head -1 | awk '{print $1, $2}') start" 2>/dev/null || true
 su - postgres -c "psql -c \"CREATE USER app WITH PASSWORD 'app' CREATEDB;\"" 2>/dev/null || true
 su - postgres -c "psql -c \"CREATE DATABASE app OWNER app;\"" 2>/dev/null || true`,
-		"redis": `apt-get install -y -qq redis-server 2>/dev/null
+		"redis": `export DEBIAN_FRONTEND=noninteractive
+apt-get install -y -qq redis-server 2>/dev/null
 redis-server --daemonize yes 2>/dev/null || true`,
 		"mailpit": `curl -sL https://github.com/axllent/mailpit/releases/latest/download/mailpit_linux_amd64.tar.gz | tar xz -C /usr/local/bin/
 nohup /usr/local/bin/mailpit --listen 0.0.0.0:8025 --smtp 0.0.0.0:1025 > /var/log/mailpit.log 2>&1 &`,
@@ -352,32 +349,44 @@ chmod 644 /var/www/html/adminer/index.php /var/www/html/adminer/adminer.css`,
 
 // buildStartupScript creates a script that starts all installed services
 func buildStartupScript(cfg *config.ProjectConfig) string {
-	script := "#!/bin/bash\n# TAVPBox auto-start services\n\n"
+	script := `#!/bin/bash
+# TAVPBox auto-start services
+set -e
 
-	// Start nginx
-	script += "nginx 2>/dev/null || true\n"
+# Start nginx if installed
+if command -v nginx &> /dev/null; then
+    nginx 2>/dev/null || true
+fi
 
-	// Start PHP-FPM
-	script += "service php8.3-fpm start 2>/dev/null || true\n"
+# Start PHP-FPM if installed
+if command -v php-fpm8.3 &> /dev/null; then
+    service php8.3-fpm start 2>/dev/null || true
+fi
 
-	// Start services based on config
-	if cfg.Services["mariadb"].Enabled || cfg.Services["mysql"].Enabled {
-		script += "mkdir -p /run/mysqld && chown mysql:mysql /run/mysqld\n"
-		script += "mysqld --user=mysql --datadir=/var/lib/mysql &\n"
-	}
-	if cfg.Services["postgres"].Enabled {
-		script += "su - postgres -c 'pg_ctlcluster $(pg_lsclusters -h | head -1 | awk \"{print \\$1, \\$2}\") start' 2>/dev/null || true\n"
-	}
-	if cfg.Services["redis"].Enabled {
-		script += "redis-server --daemonize yes 2>/dev/null || true\n"
-	}
-	if cfg.Services["mailpit"].Enabled || cfg.Services["mailhog"].Enabled {
-		script += "nohup /usr/local/bin/mailpit --listen 0.0.0.0:8025 --smtp 0.0.0.0:1025 > /var/log/mailpit.log 2>&1 &\n"
-	}
+# Start MariaDB/MySQL if installed
+if command -v mysqld &> /dev/null; then
+    mkdir -p /run/mysqld && chown mysql:mysql /run/mysqld
+    mysqld --user=mysql --datadir=/var/lib/mysql &
+    sleep 2
+fi
 
-	// Keep container alive
-	script += "\n# Keep container running\n"
-	script += "while true; do sleep 3600; done\n"
+# Start PostgreSQL if installed
+if command -v pg_ctlcluster &> /dev/null; then
+    su - postgres -c "pg_ctlcluster $(pg_lsclusters -h | head -1 | awk '{print $1, $2}') start" 2>/dev/null || true
+fi
 
+# Start Redis if installed
+if command -v redis-server &> /dev/null; then
+    redis-server --daemonize yes 2>/dev/null || true
+fi
+
+# Start Mailpit if installed
+if [ -f /usr/local/bin/mailpit ]; then
+    nohup /usr/local/bin/mailpit --listen 0.0.0.0:8025 --smtp 0.0.0.0:1025 > /var/log/mailpit.log 2>&1 &
+fi
+
+# Keep container alive
+while true; do sleep 3600; done
+`
 	return script
 }
