@@ -9,7 +9,8 @@ mysqld --user=mysql --datadir=/var/lib/mysql &
 redis-server --daemonize yes 2>/dev/null || true
 
 # Start PHP-FPM
-/usr/sbin/php-fpm8.2 --daemonize 2>/dev/null || true
+mkdir -p /run/php
+/usr/sbin/php-fpm8.2 2>/dev/null || service php8.2-fpm start 2>/dev/null || true
 
 # Start Nginx
 nginx 2>/dev/null || true
