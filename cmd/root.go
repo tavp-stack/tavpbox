@@ -17,6 +17,24 @@ Local development environment using Podman containers.
 One project = one container. Simple, fast, production-like.`,
 	SilenceErrors: true,
 	SilenceUsage:  true,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		// Skip proxy start for commands that don't need it
+		skipCommands := map[string]bool{
+			"version": true,
+			"init":    true,
+			"setup":   true,
+			"panel":   true,
+			"panel:stop": true,
+			"proxy:start": true,
+			"proxy:stop":  true,
+			"proxy:status": true,
+			"config": true,
+			"tooling": true,
+		}
+		if !skipCommands[cmd.Name()] {
+			ensureProxyRunning()
+		}
+	},
 }
 
 func init() {
