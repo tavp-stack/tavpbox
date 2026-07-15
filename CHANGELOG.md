@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.3.4
+
+### Optimization
+- DEBIAN_FRONTEND=noninteractive untuk semua apt-get commands
+- Recipe install lebih cepat (kurangi interactive prompts)
+- Service install dioptimasi (mariadb, mysql, postgres, redis)
+
 ## v1.3.3
 
 ### Fix
