@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.4.2
+
+### Feature
+- Pre-built images dengan semua service (MariaDB, Redis, Mailpit)
+- installService() skip jika service udah ada di image
+- Start script pakai php-fpm8.2 langsung
+- Gak ada lagi apt-get timeout
+
 ## v1.4.1
 
 ### Feature
