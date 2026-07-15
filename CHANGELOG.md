@@ -1,0 +1,56 @@
+# Changelog
+
+## v1.1.0
+
+### Architecture Change
+- LXC/LXD → Podman (rootless, daemonless)
+- Traefik/Caddy → Embedded Go proxy (zero dependency, ~10MB RAM)
+- Self-signed cert → Let's Encrypt wildcard cert
+- Full Lando migration support
+
+### New Features
+- Embedded Go reverse proxy (HTTP :80 + HTTPS :443)
+- Wildcard cert `*.tavp.my.id` via Let's Encrypt (ACME DNS-01)
+- Dynamic tooling commands (artisan, composer, npm, etc.)
+- Web panel (`tavpbox panel`) with Tailwind + Alpine.js
+- Full Lando migration (services, tooling, env, proxy, build/run)
+- Auto-route update on rebuild
+- Config management (`tavpbox config set/get/list`)
+- Multi-platform (Windows, macOS, Linux)
+
+### Commands Added
+- `tavpbox tooling` — List tooling commands
+- `tavpbox panel` — Start web panel
+- `tavpbox panel:stop` — Stop panel
+- `tavpbox proxy:start` — Start reverse proxy
+- `tavpbox proxy:stop` — Stop reverse proxy
+- `tavpbox proxy:status` — Show proxy status
+- `tavpbox config set/get/list` — Configuration management
+- `tavpbox setup` — Install dependencies + generate cert
+
+### Files Changed
+- `internal/config/lando.go` — Lando YAML parser + converter
+- `internal/proxy/proxy.go` — Embedded Go reverse proxy
+- `internal/certs/certs.go` — Let's Encrypt ACME via lego
+- `internal/podman/client.go` — Podman wrapper
+- `cmd/create.go` — Container creation + recipe install
+- `cmd/tooling.go` — Dynamic tooling commands
+- `cmd/panel.go` — Web panel server
+- `cmd/proxy.go` — Proxy management
+- `cmd/config.go` — Configuration management
+- `cmd/setup.go` — Dependencies + cert setup
+- `internal/api/` — REST API + embedded panel
+
+## v0.1.0
+
+### Initial Release
+- LXC container management
+- TUI wizard for init and create
+- Multi-stack support (TAVP, Laravel, Node.js, Python, Blank)
+- Service plugins (MariaDB, Redis, PostgreSQL, Mailpit, phpMyAdmin)
+- Auto-domain (*.tavp.local)
+- Plugin system (YAML-based)
+- Custom tooling commands
+- Image management
+- Snapshot system
+- Cross-platform (Linux, macOS, Windows/WSL2)

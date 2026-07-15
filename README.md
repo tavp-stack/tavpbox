@@ -4,7 +4,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  TAVPBox v1.1.0                                         │
+│  TAVPBox                                                │
 ├──────────────────┬──────────────────────────────────────┤
 │ Runtime          │ Podman (rootless, daemonless)        │
 │ Reverse Proxy    │ Embedded Go proxy (HTTP + HTTPS)     │
@@ -20,39 +20,6 @@
 │ License          │ MIT                                  │
 └──────────────────┴──────────────────────────────────────┘
 ```
-
----
-
-## Changelog v1.1.0
-
-### Architecture Change
-- **LXC/LXD → Podman**: Rootless, daemonless, no sudo required
-- **Traefik/Caddy → Embedded Go proxy**: Zero dependency, ~10MB RAM
-- **Self-signed cert → Let's Encrypt**: Real wildcard cert via ACME DNS-01
-- **No Lando support → Full Lando migration**: Parse `.lando.yml` automatically
-
-### New Features
-- ✅ Embedded Go reverse proxy (HTTP :80 + HTTPS :443)
-- ✅ Auto-generated wildcard cert (`*.tavp.my.id`) via lego + Cloudflare
-- ✅ Dynamic tooling commands (artisan, composer, npm, etc.)
-- ✅ Web panel (`tavpbox panel`) with Tailwind + Alpine.js
-- ✅ Full Lando migration (services, tooling, env, proxy, build/run)
-- ✅ Auto-route update on rebuild
-- ✅ Config management (`tavpbox config set/get/list`)
-- ✅ Multi-platform (Windows, macOS, Linux)
-
-### Files Changed
-- `internal/config/lando.go` — Lando YAML parser + converter
-- `internal/proxy/proxy.go` — Embedded Go reverse proxy
-- `internal/certs/certs.go` — Let's Encrypt ACME via lego
-- `internal/podman/client.go` — Podman wrapper
-- `cmd/create.go` — Container creation + recipe install
-- `cmd/tooling.go` — Dynamic tooling commands
-- `cmd/panel.go` — Web panel server
-- `cmd/proxy.go` — Proxy management
-- `cmd/config.go` — Configuration management
-- `cmd/setup.go` — Dependencies + cert setup
-- `internal/api/` — REST API + embedded panel
 
 ---
 
