@@ -164,11 +164,6 @@ Buka browser: `https://project.tavp.my.id`
 | `tavpbox config set <key> <value>` | Set config value |
 | `tavpbox config get <key>` | Get config value |
 
-### Setup
-
-| Command | Description |
-|---------|-------------|
-| `tavpbox setup` | Install dependencies + generate cert |
 | `tavpbox version` | Show version |
 
 ---
@@ -285,25 +280,14 @@ tavpbox create
 
 ## HTTPS
 
-TAVPBox auto-generate wildcard cert `*.tavp.my.id` via Let's Encrypt (ACME DNS-01 dengan Cloudflare).
+HTTPS otomatis. TAVPBox sudah include wildcard cert `*.tavp.my.id` yang valid. Developer gak perlu setup apa-apa.
 
-### Setup:
 ```powershell
-# 1. Set Cloudflare credentials
-tavpbox config set cloudflare_token <token>
-tavpbox config set cloudflare_zone <zone_id>
-
-# 2. Generate cert
-tavpbox setup
+tavpbox create
+# https://myproject.tavp.my.id → langsung jalan
 ```
 
-### Auto-renew:
-Cert expired ~90 hari. Jalankan `tavpbox setup` sebelum expired untuk renew.
-
-### Manual renew:
-```powershell
-tavpbox setup
-```
+Cert wildcard di-embed di binary. Browser auto-trust. Expired ~90 hari, admin release binary baru.
 
 ---
 
@@ -333,14 +317,13 @@ tavpbox (Go binary)
 │   ├── tooling (dynamic subcommands)
 │   ├── panel (web UI)
 │   ├── proxy (reverse proxy management)
-│   ├── config (configuration)
-│   └── setup (dependencies + cert)
+│   └── config (configuration)
 ├── Podman client (exec wrapper)
 ├── Embedded Go proxy
 │   ├── HTTP :80
 │   ├── HTTPS :443
 │   └── Dynamic routes (routes.json)
-├── Let's Encrypt ACME (lego + Cloudflare)
+├── Wildcard cert (*.tavp.my.id) embedded
 ├── Service library (15 services)
 ├── Recipe library (7 recipes)
 ├── Lando parser (.lando.yml)
@@ -389,16 +372,7 @@ go test ./...
 ## Troubleshooting
 
 ### Podman not found
-```powershell
-tavpbox setup
-# Atau install manual: https://podman-desktop.io
-```
-
-### HTTPS cert error
-```powershell
-tavpbox setup
-# Pastikan Cloudflare token + zone ID sudah diset
-```
+Install Podman Desktop: https://podman-desktop.io
 
 ### Container already exists
 ```powershell
