@@ -1,0 +1,37 @@
+FROM debian:12
+
+LABEL org.opencontainers.image.source="https://github.com/tavp-stack/tavpbox"
+LABEL org.opencontainers.image.description="TAVPBox PHP base image with Nginx, PHP 8.3, Node.js 20, Composer, Phalcon"
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
+    nginx \
+    php8.2-fpm php8.2-cli php8.2-mbstring php8.2-xml \
+    php8.2-curl php8.2-zip php8.2-bcmath php8.2-intl php8.2-mysql \
+    php8.2-pgsql php8.2-redis php8.2-sqlite3 php8.2-gd \
+    php8.2-dev php-pear \
+    gcc make \
+    composer \
+    curl wget git unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Phalcon
+RUN pecl channel-update pecl.php.net 2>/dev/null \
+    && pecl install phalcon 2>/dev/null || true \
+    && echo "extension=phalcon.so" > /etc/php/8.2/mods-available/phalcon.ini \
+    && phpenmod phalcon 2>/dev/null || true
+
+# Install Node.js 20
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y -qq --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Configure nginx
+COPY nginx.conf /etc/nginx/sites-available/default
+
+# Start script
+COPY start.sh /usr/local/bin/tavpbox-start.sh
+RUN chmod +x /usr/local/bin/tavpbox-start.sh
+
+CMD ["/usr/local/bin/tavpbox-start.sh"]

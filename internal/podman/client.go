@@ -279,3 +279,18 @@ func (c *Client) VolumeCreate(name string) error {
 	_, err := c.run("volume", "create", name)
 	return err
 }
+
+// Commit creates an image from a container
+func (c *Client) Commit(container, image string) (string, error) {
+	return c.run("commit", container, image)
+}
+
+// Push pushes an image to a registry
+func (c *Client) Push(image string) (string, error) {
+	return c.run("push", image)
+}
+
+// ListImages lists all local images
+func (c *Client) ListImages() (string, error) {
+	return c.run("images", "--format", "table {{.Repository}}\t{{.Tag}}\t{{.Size}}")
+}

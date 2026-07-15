@@ -42,6 +42,29 @@ cross: clean
 	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o dist/$(BINARY)-linux-amd64 .
 	GOOS=linux GOARCH=arm64 go build $(LDFLAGS) -o dist/$(BINARY)-linux-arm64 .
 
+# Build and push base images
+IMAGE_PREFIX ?= ghcr.io/tavp-stack/tavpbox
+
+images-php:
+	podman build -t $(IMAGE_PREFIX)-php:latest -f images/php/Containerfile images/php/
+
+images-node:
+	podman build -t $(IMAGE_PREFIX)-node:latest -f images/node/Containerfile images/node/
+
+images-go:
+	podman build -t $(IMAGE_PREFIX)-go:latest -f images/go/Containerfile images/go/
+
+images-python:
+	podman build -t $(IMAGE_PREFIX)-python:latest -f images/python/Containerfile images/python/
+
+images-all: images-php images-node images-go images-python
+
+images-push: images-all
+	podman push $(IMAGE_PREFIX)-php:latest
+	podman push $(IMAGE_PREFIX)-node:latest
+	podman push $(IMAGE_PREFIX)-go:latest
+	podman push $(IMAGE_PREFIX)-python:latest
+
 install: build
 	cp $(BINARY).exe $(LOCALAPPDATA)/tavpbox/$(BINARY).exe 2>/dev/null || \
 	cp $(BINARY) /usr/local/bin/$(BINARY) 2>/dev/null || \
