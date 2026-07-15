@@ -62,49 +62,27 @@ go install github.com/tavp-stack/tavpbox@latest
 
 ---
 
-## Quick Start (5 Menit)
-
-### Step 1: Setup
+## Quick Start
 
 ```powershell
-tavpbox setup
-```
-
-Yang dilakukan:
-- ✅ Check/install Podman
-- ✅ Generate wildcard cert `*.tavp.my.id` (via Let's Encrypt)
-- ✅ Cert di-embed di binary
-
-### Step 2: Config Cloudflare (sekali aja)
-
-```powershell
-tavpbox config set cloudflare_token <your-token>
-tavpbox config set cloudflare_zone <your-zone-id>
-```
-
-Buat token di: https://dash.cloudflare.com/profile/api-tokens
-- Permission: Zone → DNS → Edit
-- Zone: `tavp.my.id`
-
-### Step 3: Project Baru
-
-```powershell
+# 1. Init project
 cd ~/projects/my-app
-tavpbox init          # Generate .tavpbox.yml
-tavpbox create        # Create container + install services
+tavpbox init
+
+# 2. Create container
+tavpbox create
+
+# 3. Open browser
+# https://my-app.tavp.my.id
 ```
 
-Buka browser: `https://my-app.tavp.my.id`
-
-### Step 4: Migrasi dari Lando
+### Migrasi dari Lando
 
 ```powershell
-cd ~/lando-project    # Sudah ada .lando.yml
-tavpbox info          # Preview config
-tavpbox create        # Create container
+cd ~/lando-project
+tavpbox create
+# https://project.tavp.my.id → jalan!
 ```
-
-Buka browser: `https://project.tavp.my.id`
 
 ---
 
