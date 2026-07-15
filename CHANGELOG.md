@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.4.0
+
+### Feature
+- Pre-built image system (Containerfiles for PHP, Node, Go, Python)
+- tavpbox image build — build custom image dari container
+- tavpbox image push — push ke registry
+- tavpbox image pull — pull dari registry
+- tavpbox image list — list local images
+- Makefile targets untuk build/push official images
+- Official images: ghcr.io/tavp-stack/tavpbox-{php,node,go,python}
+
 ## v1.3.4
 
 ### Optimization
