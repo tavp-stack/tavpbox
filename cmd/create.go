@@ -312,15 +312,21 @@ systemctl start nginx 2>/dev/null || service nginx start
 
 func installService(client *podman.Client, cname, svcName string) error {
 	scripts := map[string]string{
-		"mariadb": `apt-get install -y -qq mariadb-server mariadb-client
-service mariadb start 2>/dev/null || systemctl start mariadb 2>/dev/null || true
+		"mariadb": `apt-get install -y -qq mariadb-server mariadb-client 2>/dev/null
+mkdir -p /run/mysqld && chown mysql:mysql /run/mysqld
+mysqld --user=mysql --datadir=/var/lib/mysql &
+sleep 3
 mysql -u root -e "CREATE DATABASE IF NOT EXISTS app; CREATE USER IF NOT EXISTS 'app'@'localhost' IDENTIFIED BY 'app'; GRANT ALL ON app.* TO 'app'@'localhost'; FLUSH PRIVILEGES;" 2>/dev/null || true`,
-		"mysql": `apt-get install -y -qq mysql-server mysql-client
-service mysql start 2>/dev/null || systemctl start mysql 2>/dev/null || true`,
-		"postgres": `apt-get install -y -qq postgresql postgresql-client
-service postgresql start 2>/dev/null || systemctl start postgresql 2>/dev/null || true`,
-		"redis": `apt-get install -y -qq redis-server
-service redis-server start 2>/dev/null || systemctl start redis-server 2>/dev/null || true`,
+		"mysql": `apt-get install -y -qq mysql-server mysql-client 2>/dev/null
+mkdir -p /run/mysqld && chown mysql:mysql /run/mysqld
+mysqld --user=mysql &
+sleep 3`,
+		"postgres": `apt-get install -y -qq postgresql postgresql-client 2>/dev/null
+su - postgres -c "pg_ctlcluster $(pg_lsclusters -h | head -1 | awk '{print $1, $2}') start" 2>/dev/null || true
+su - postgres -c "psql -c \"CREATE USER app WITH PASSWORD 'app' CREATEDB;\"" 2>/dev/null || true
+su - postgres -c "psql -c \"CREATE DATABASE app OWNER app;\"" 2>/dev/null || true`,
+		"redis": `apt-get install -y -qq redis-server 2>/dev/null
+redis-server --daemonize yes 2>/dev/null || true`,
 		"mailpit": `curl -sL https://github.com/axllent/mailpit/releases/latest/download/mailpit_linux_amd64.tar.gz | tar xz -C /usr/local/bin/
 nohup /usr/local/bin/mailpit --listen 0.0.0.0:8025 --smtp 0.0.0.0:1025 > /var/log/mailpit.log 2>&1 &`,
 		"adminer": `mkdir -p /var/www/html/adminer
