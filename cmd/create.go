@@ -124,6 +124,12 @@ var createCmd = &cobra.Command{
 			}
 		}
 		if cfg.Services["phpmyadmin"].Enabled {
+			pmaPort := client.GetHostPort(cname, "8080")
+			if pmaPort > 0 {
+				p.AddRoute("phpmyadmin."+domain, "127.0.0.1", pmaPort)
+			}
+		}
+		if cfg.Services["phpmyadmin"].Enabled {
 			// phpMyAdmin runs on port 80 inside container via nginx
 			p.AddRoute("phpmyadmin."+domain, "127.0.0.1", hostPort)
 		}
@@ -224,8 +230,16 @@ func installPHPServer(client *podman.Client, cname string, cfg *config.ProjectCo
 		// Already installed, just configure and start
 		// Install Phalcon if missing
 		client.Exec(cname, "bash", "-c", "pecl install phalcon 2>/dev/null && echo 'extension=phalcon.so' > /usr/local/etc/php/conf.d/phalcon.ini || true")
+		// Configure nginx with correct webroot
 		_, err = client.Exec(cname, "bash", "-c", fmt.Sprintf(`
 mkdir -p /run/php
+
+# Create storage symlinks for Laravel/TAVP
+mkdir -p /tmp/storage/framework/views /tmp/storage/framework/cache /tmp/storage/framework/sessions /tmp/bootstrap-cache
+rm -rf /var/www/html/storage /var/www/html/bootstrap/cache 2>/dev/null || true
+ln -sf /tmp/storage /var/www/html/storage
+ln -sf /tmp/bootstrap-cache /var/www/html/bootstrap/cache
+
 cat > /etc/nginx/sites-available/default <<'NGINX'
 server {
     listen 80 default_server;
@@ -454,7 +468,23 @@ curl -sL https://www.adminer.org/download/v5.4.4/designs/haeckel/adminer.css -o 
 chmod 644 /var/www/html/adminer/index.php /var/www/html/adminer/adminer.css`,
 		"phpmyadmin": `export DEBIAN_FRONTEND=noninteractive
 apt-get install -y -qq phpmyadmin 2>/dev/null
-ln -sf /usr/share/phpmyadmin /var/www/html/pma 2>/dev/null || true`,
+ln -sf /usr/share/phpmyadmin /var/www/html/pma 2>/dev/null || true
+# Create separate nginx config for phpmyadmin on port 8080
+cat > /etc/nginx/sites-available/phpmyadmin <<'NGINX'
+server {
+    listen 8080 default_server;
+    root /usr/share/phpmyadmin;
+    index index.php;
+    location / { try_files $uri $uri/ /index.php?$query_string; }
+    location ~ \.php$ {
+        fastcgi_pass 127.0.0.1:9000;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+}
+NGINX
+ln -sf /etc/nginx/sites-available/phpmyadmin /etc/nginx/sites-enabled/phpmyadmin 2>/dev/null || true
+nginx -s reload 2>/dev/null || true`,
 	}
 
 	if script, ok := scripts[svcName]; ok {
@@ -468,28 +498,11 @@ ln -sf /usr/share/phpmyadmin /var/www/html/pma 2>/dev/null || true`,
 func buildStartupScript(cfg *config.ProjectConfig) string {
 	script := `#!/bin/bash
 # TAVPBox auto-start services
-set -e
-
-# Start nginx if installed
-if command -v nginx &> /dev/null; then
-    nginx 2>/dev/null || true
-fi
-
-# Start PHP-FPM if installed
-if command -v php-fpm8.3 &> /dev/null; then
-    service php8.3-fpm start 2>/dev/null || true
-fi
 
 # Start MariaDB/MySQL if installed
 if command -v mysqld &> /dev/null; then
     mkdir -p /run/mysqld && chown mysql:mysql /run/mysqld
     mysqld --user=mysql --datadir=/var/lib/mysql &
-    sleep 2
-fi
-
-# Start PostgreSQL if installed
-if command -v pg_ctlcluster &> /dev/null; then
-    su - postgres -c "pg_ctlcluster $(pg_lsclusters -h | head -1 | awk '{print $1, $2}') start" 2>/dev/null || true
 fi
 
 # Start Redis if installed
