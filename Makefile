@@ -2,7 +2,7 @@ VERSION ?= dev
 LDFLAGS := -ldflags "-s -w -X github.com/tavp-stack/tavpbox/cmd.Version=$(VERSION)"
 BINARY := tavpbox
 
-.PHONY: build clean cross test lint
+.PHONY: build clean cross test lint cert
 
 build:
 	go build $(LDFLAGS) -o $(BINARY).exe .
@@ -17,6 +17,23 @@ test:
 lint:
 	go vet ./...
 
+# Generate cert and embed in binary
+cert:
+	@echo "Generating wildcard cert for *.tavp.my.id..."
+	@mkdir -p internal/certs/embedded
+	@if [ -f "$$HOME/.tavpbox/certs/tavp.my.id.pem" ]; then \
+		cp $$HOME/.tavpbox/certs/tavp.my.id.pem internal/certs/embedded/; \
+		cp $$HOME/.tavpbox/certs/tavp.my.id-key.pem internal/certs/embedded/; \
+		echo "Cert copied from ~/.tavpbox/certs/"; \
+	else \
+		echo "No cert found. Run: tavpbox setup first"; \
+		exit 1; \
+	fi
+
+# Build with embedded cert
+release: cert cross
+	@echo "Release binaries in dist/"
+
 cross: clean
 	mkdir -p dist
 	GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o dist/$(BINARY)-windows-amd64.exe .
@@ -29,10 +46,6 @@ install: build
 	cp $(BINARY).exe $(LOCALAPPDATA)/tavpbox/$(BINARY).exe 2>/dev/null || \
 	cp $(BINARY) /usr/local/bin/$(BINARY) 2>/dev/null || \
 	echo "Copy manually to PATH"
-
-release: cross
-	@echo "Release binaries in dist/"
-	@ls -la dist/
 
 zip: cross
 	cd dist && for f in *; do zip "$$f.zip" "$$f"; done

@@ -6,6 +6,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
+	"embed"
 	"encoding/pem"
 	"fmt"
 	"os"
@@ -18,6 +19,9 @@ import (
 	"github.com/go-acme/lego/v4/registration"
 )
 
+//go:embed embedded/*
+var embeddedCerts embed.FS
+
 func certsDir() string {
 	home, _ := os.UserHomeDir()
 	dir := filepath.Join(home, ".tavpbox", "certs")
@@ -25,6 +29,69 @@ func certsDir() string {
 	return dir
 }
 
+// EnsureEmbeddedCert extracts the embedded cert to ~/.tavpbox/certs/ if not present
+func EnsureEmbeddedCert(domain string) error {
+	dir := certsDir()
+	certPath := filepath.Join(dir, domain+".pem")
+	keyPath := filepath.Join(dir, domain+"-key.pem")
+
+	// Check if cert already exists and is valid
+	if isCertValid(certPath) {
+		return nil
+	}
+
+	// Extract from embedded
+	certData, err := embeddedCerts.ReadFile("embedded/" + domain + ".pem")
+	if err != nil {
+		return fmt.Errorf("embedded cert not found for %s: %w", domain, err)
+	}
+	keyData, err := embeddedCerts.ReadFile("embedded/" + domain + "-key.pem")
+	if err != nil {
+		return fmt.Errorf("embedded key not found for %s: %w", domain, err)
+	}
+
+	if err := os.WriteFile(certPath, certData, 0644); err != nil {
+		return fmt.Errorf("write cert: %w", err)
+	}
+	if err := os.WriteFile(keyPath, keyData, 0644); err != nil {
+		return fmt.Errorf("write key: %w", err)
+	}
+
+	return nil
+}
+
+// GetWildcardCert returns the path to the wildcard cert
+func GetWildcardCert(domain string) (certPath, keyPath string) {
+	// Ensure embedded cert is extracted
+	EnsureEmbeddedCert(domain)
+
+	dir := certsDir()
+	certPath = filepath.Join(dir, domain+".pem")
+	keyPath = filepath.Join(dir, domain+"-key.pem")
+
+	if isCertValid(certPath) {
+		return certPath, keyPath
+	}
+	return "", ""
+}
+
+func isCertValid(certPath string) bool {
+	data, err := os.ReadFile(certPath)
+	if err != nil {
+		return false
+	}
+	block, _ := pem.Decode(data)
+	if block == nil {
+		return false
+	}
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return false
+	}
+	return time.Until(cert.NotAfter) > 30*24*time.Hour
+}
+
+// LegoUser implements registration.User for ACME
 type LegoUser struct {
 	Email        string
 	Registration *registration.Resource
@@ -33,7 +100,7 @@ type LegoUser struct {
 
 func (u *LegoUser) GetEmail() string                        { return u.Email }
 func (u *LegoUser) GetRegistration() *registration.Resource { return u.Registration }
-func (u *LegoUser) GetPrivateKey() crypto.PrivateKey { return u.key }
+func (u *LegoUser) GetPrivateKey() crypto.PrivateKey        { return u.key }
 
 // GenerateWildcardCert generates a wildcard cert using lego with Cloudflare DNS
 func GenerateWildcardCert(domain, cfToken string) (certPath, keyPath string, err error) {
@@ -104,32 +171,4 @@ func GenerateWildcardCert(domain, cfToken string) (certPath, keyPath string, err
 	}
 
 	return certPath, keyPath, nil
-}
-
-// GetWildcardCert returns the path to the wildcard cert
-func GetWildcardCert(domain string) (certPath, keyPath string) {
-	dir := certsDir()
-	certPath = filepath.Join(dir, domain+".pem")
-	keyPath = filepath.Join(dir, domain+"-key.pem")
-
-	if isCertValid(certPath) {
-		return certPath, keyPath
-	}
-	return "", ""
-}
-
-func isCertValid(certPath string) bool {
-	data, err := os.ReadFile(certPath)
-	if err != nil {
-		return false
-	}
-	block, _ := pem.Decode(data)
-	if block == nil {
-		return false
-	}
-	cert, err := x509.ParseCertificate(block.Bytes)
-	if err != nil {
-		return false
-	}
-	return time.Until(cert.NotAfter) > 30*24*time.Hour
 }

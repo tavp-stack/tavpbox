@@ -18,8 +18,15 @@ jobs:
         with:
           go-version: '1.22'
 
-      - name: Build binaries
-        run: make cross VERSION=${{ github.ref_name }}
+      - name: Build binaries with embedded cert
+        run: |
+          mkdir -p internal/certs/embedded
+          # Use existing cert if available, otherwise skip
+          if [ -f "$HOME/.tavpbox/certs/tavp.my.id.pem" ]; then
+            cp $HOME/.tavpbox/certs/tavp.my.id.pem internal/certs/embedded/
+            cp $HOME/.tavpbox/certs/tavp.my.id-key.pem internal/certs/embedded/
+          fi
+          make cross VERSION=${{ github.ref_name }}
 
       - name: Create release
         uses: softprops/action-gh-release@v2
