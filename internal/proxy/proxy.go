@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/tavp-stack/tavpbox/internal/certs"
 )
@@ -90,6 +91,9 @@ func (p *Proxy) Routes() []Route {
 func (p *Proxy) Start() error {
 	p.loadRoutes()
 
+	// Watch routes.json for changes
+	go p.watchRoutes()
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", p.handler)
 
@@ -122,6 +126,24 @@ func (p *Proxy) Start() error {
 		TLSConfig: tlsConfig,
 	}
 	return server.ListenAndServeTLS("", "")
+}
+
+// watchRoutes periodically checks for changes to routes.json
+func (p *Proxy) watchRoutes() {
+	var lastMod time.Time
+	routesFile := p.routesFile()
+
+	for {
+		time.Sleep(2 * time.Second)
+		info, err := os.Stat(routesFile)
+		if err != nil {
+			continue
+		}
+		if info.ModTime() != lastMod {
+			lastMod = info.ModTime()
+			p.loadRoutes()
+		}
+	}
 }
 
 func (p *Proxy) handler(w http.ResponseWriter, r *http.Request) {

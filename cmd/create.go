@@ -95,6 +95,9 @@ var createCmd = &cobra.Command{
 		ip, _ := client.GetIP(cname)
 		hostPort := client.GetHostPort(cname, "80")
 
+		// Ensure proxy is running before adding routes
+		ensureProxyRunning()
+
 		// Add proxy route for domain access
 		p := proxy.New(80)
 		p.AddRoute(domain, "127.0.0.1", hostPort)
@@ -190,11 +193,11 @@ func installRecipe(client *podman.Client, cname string, cfg *config.ProjectConfi
 
 func installPHPServer(client *podman.Client, cname string) error {
 	_, err := client.Exec(cname, "bash", "-c", `
-apt-get update -qq && apt-get install -y -qq \
+apt-get update -qq && apt-get install -y -qq --no-install-recommends \
   nginx php8.3-fpm php8.3-cli php8.3-mbstring php8.3-xml \
   php8.3-curl php8.3-zip php8.3-bcmath php8.3-intl php8.3-mysql \
   php8.3-pgsql php8.3-redis php8.3-sqlite3 php8.3-gd \
-  php-pear php8.3-dev gcc make composer curl wget git unzip
+  composer curl wget git unzip
 
 cat > /etc/nginx/sites-available/default <<'NGINX'
 server {
@@ -218,14 +221,14 @@ service php8.3-fpm start 2>/dev/null; service nginx start 2>/dev/null
 
 func installLaravel(client *podman.Client, cname string) error {
 	_, err := client.Exec(cname, "bash", "-c", `
-apt-get update -qq && apt-get install -y -qq \
+apt-get update -qq && apt-get install -y -qq --no-install-recommends \
   nginx php8.3-fpm php8.3-cli php8.3-mbstring php8.3-xml \
   php8.3-curl php8.3-zip php8.3-bcmath php8.3-intl php8.3-mysql \
   php8.3-pgsql php8.3-redis php8.3-sqlite3 php8.3-gd \
-  php-pear php8.3-dev gcc make composer curl wget git unzip
+  composer curl wget git unzip
 
 curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-apt-get install -y -qq nodejs
+apt-get install -y -qq --no-install-recommends nodejs
 
 cat > /etc/nginx/sites-available/default <<'NGINX'
 server {
