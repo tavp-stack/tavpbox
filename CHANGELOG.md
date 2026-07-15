@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.3.3
+
+### Fix
+- Auto-start proxy on all commands (PersistentPreRun)
+- Proxy otomatis jalan saat `tavpbox create`, `start`, `restart`, `info`, dll
+- Developer gak perlu start proxy manual
+
 ## v1.3.2
 
 ### Fix
