@@ -88,8 +88,8 @@ var createCmd = &cobra.Command{
 		startupScript := buildStartupScript(cfg)
 		client.Exec(cname, "bash", "-c", fmt.Sprintf("cat > /usr/local/bin/tavpbox-startup.sh << 'STARTEOF'\n%s\nSTARTEOF\nchmod +x /usr/local/bin/tavpbox-startup.sh", startupScript))
 
-		// Run startup script now
-		client.Exec(cname, "bash", "/usr/local/bin/tavpbox-startup.sh")
+		// Run startup script in background (not blocking)
+		client.Exec(cname, "bash", "-c", "nohup /usr/local/bin/tavpbox-startup.sh > /var/log/tavpbox-startup.log 2>&1 &")
 
 		// Execute Lando build/run commands if present
 		if buildCmds, ok := cfg.Env["LANDO_BUILD_CMDS"]; ok && buildCmds != "" {
