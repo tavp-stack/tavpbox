@@ -201,7 +201,7 @@ func installRecipe(client *podman.Client, cname string, cfg *config.ProjectConfi
 
 func installPHPServer(client *podman.Client, cname string) error {
 	// Check if packages are already installed (pre-built image)
-	_, err := client.Exec(cname, "bash", "-c", "command -v nginx && command -v php-fpm8.3")
+	_, err := client.Exec(cname, "bash", "-c", "command -v nginx && command -v php-fpm")
 	if err == nil {
 		// Already installed, just configure and start
 		_, err = client.Exec(cname, "bash", "-c", `
@@ -212,14 +212,16 @@ server {
     index index.php index.html;
     location / { try_files $uri $uri/ /index.php?$query_string; }
     location ~ \.php$ {
-        fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+        fastcgi_pass 127.0.0.1:9000;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
         include fastcgi_params;
     }
     location ~ /\.ht { deny all; }
 }
 NGINX
-service php8.3-fpm start 2>/dev/null; service nginx start 2>/dev/null
+mkdir -p /run/php
+php-fpm &
+nginx 2>/dev/null || true
 `)
 		return err
 	}
@@ -257,7 +259,7 @@ service php8.3-fpm start 2>/dev/null; service nginx start 2>/dev/null
 
 func installLaravel(client *podman.Client, cname string) error {
 	// Check if packages are already installed (pre-built image)
-	_, err := client.Exec(cname, "bash", "-c", "command -v nginx && command -v php-fpm8.3")
+	_, err := client.Exec(cname, "bash", "-c", "command -v nginx && command -v php-fpm")
 	if err == nil {
 		_, err = client.Exec(cname, "bash", "-c", `
 cat > /etc/nginx/sites-available/default <<'NGINX'
@@ -267,14 +269,16 @@ server {
     index index.php;
     location / { try_files $uri $uri/ /index.php?$query_string; }
     location ~ \.php$ {
-        fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+        fastcgi_pass 127.0.0.1:9000;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
         include fastcgi_params;
     }
     location ~ /\.ht { deny all; }
 }
 NGINX
-service php8.3-fpm start 2>/dev/null; service nginx start 2>/dev/null
+mkdir -p /run/php
+php-fpm &
+nginx 2>/dev/null || true
 `)
 		return err
 	}
@@ -312,7 +316,7 @@ func installNode(client *podman.Client, cname string) error {
 	_, err := client.Exec(cname, "bash", "-c", "command -v nginx && command -v node")
 	if err == nil {
 		_, err = client.Exec(cname, "bash", "-c", `
-cat > /etc/nginx/http.d/default.conf <<'NGINX'
+cat > /etc/nginx/sites-available/default <<'NGINX'
 server {
     listen 80;
     root /var/www/html;
