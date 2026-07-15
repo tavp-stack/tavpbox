@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.3.1
+
+### Fix
+- Service install tanpa systemctl (langsung start process)
+- MariaDB: mysqld --user=mysql
+- MySQL: mysqld --user=mysql
+- PostgreSQL: pg_ctlcluster
+- Redis: redis-server --daemonize yes
+- Semua service work tanpa systemd
+
 ## v1.3.0
 
 ### Feature
