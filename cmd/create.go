@@ -54,6 +54,20 @@ var createCmd = &cobra.Command{
 			fmt.Sprintf("%s:/var/www/html", absWebroot),
 		}
 
+		// Auto-volume for database persistence
+		if cfg.Services["mariadb"].Enabled || cfg.Services["mysql"].Enabled {
+			dbVolumeDir := filepath.Join(config.HomeDir(), "volumes", cfg.Name, "mysql")
+			os.MkdirAll(dbVolumeDir, 0755)
+			volumes = append(volumes, fmt.Sprintf("%s:/var/lib/mysql", dbVolumeDir))
+			fmt.Printf("  DB volume: %s\n", dbVolumeDir)
+		}
+		if cfg.Services["postgres"].Enabled {
+			pgVolumeDir := filepath.Join(config.HomeDir(), "volumes", cfg.Name, "postgres")
+			os.MkdirAll(pgVolumeDir, 0755)
+			volumes = append(volumes, fmt.Sprintf("%s:/var/lib/postgresql/data", pgVolumeDir))
+			fmt.Printf("  DB volume: %s\n", pgVolumeDir)
+		}
+
 		domain := cfg.Name + "." + globalCfg.DomainSuffix
 
 		// 1. Pull image
