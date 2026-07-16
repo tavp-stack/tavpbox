@@ -135,8 +135,7 @@ var createCmd = &cobra.Command{
 		// Ensure HTTPS cert exists
 		certs.GetWildcardCert("tavp.my.id")
 
-		// Restart proxy to pick up new routes
-		restartProxy()
+		// Proxy auto-detects route changes via file watcher — no restart needed
 
 		fmt.Printf("\n✓ Box '%s' created and running!\n", cfg.Name)
 		fmt.Printf("  Direct:  http://localhost:%d\n", hostPort)
