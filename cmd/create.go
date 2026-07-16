@@ -37,8 +37,16 @@ var createCmd = &cobra.Command{
 		}
 
 		webroot := cfg.Webroot
-		if webroot == "" {
-			webroot = "."
+		if webroot == "" || webroot == "." {
+			// Check .lando.yml for webroot override
+			wd, _ := os.Getwd()
+			landoPath := filepath.Join(wd, ".lando.yml")
+			if lando, err := config.ParseLando(landoPath); err == nil && lando.Config.Webroot != "" {
+				webroot = lando.Config.Webroot
+			}
+			if webroot == "" {
+				webroot = "."
+			}
 		}
 		absWebroot, _ := filepath.Abs(webroot)
 		volumes := []string{

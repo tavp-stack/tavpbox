@@ -34,6 +34,12 @@ var initCmd = &cobra.Command{
 				return fmt.Errorf("parse .lando.yml: %w", err)
 			}
 			cfg := config.ConvertLandoToTavpbox(lando)
+
+			// Force webroot from .lando.yml if present
+			if lando.Config.Webroot != "" {
+				cfg.Webroot = lando.Config.Webroot
+			}
+
 			if err := config.SaveProject(".tavpbox.yml", cfg); err != nil {
 				return fmt.Errorf("save config: %w", err)
 			}
