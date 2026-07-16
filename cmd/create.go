@@ -302,7 +302,7 @@ server {
     index index.php index.html;
     location / { try_files $uri $uri/ /index.php?$query_string; }
     location ~ \.php$ {
-        fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+        fastcgi_pass 127.0.0.1:9000;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
         include fastcgi_params;
     }
@@ -328,7 +328,7 @@ mkdir -p /run/php
 cat > /etc/nginx/sites-available/default <<'NGINX'
 server {
     listen 80 default_server;
-    root %s;
+    root /var/www/html/public;
     index index.php;
     location / { try_files $uri $uri/ /index.php?$query_string; }
     location ~ \.php$ {
@@ -544,40 +544,44 @@ func configureAdminServices(client *podman.Client, cname string, cfg *config.Pro
 		return
 	}
 
-	var nginxExtra string
+	fmt.Printf("  Configuring admin services...\n")
+
+	// Download phpMyAdmin if needed
 	if hasPhpmyadmin {
-		nginxExtra += `
-    location /pma/ {
-        alias /usr/share/phpmyadmin/;
-        index index.php;
-        location ~ \.php$ {
-            fastcgi_pass unix:/run/php/php8.3-fpm.sock;
-            fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-            include fastcgi_params;
-        }
-    }`
+		client.Exec(cname, "bash", "-c", `
+rm -f /var/www/html/pma /var/www/html/public/pma
+mkdir -p /var/www/html/pma
+if [ ! -f /var/www/html/pma/index.php ]; then
+    curl -sL https://files.phpmyadmin.net/phpMyAdmin/5.2.1/phpMyAdmin-5.2.1-all-languages.tar.gz | tar xz -C /tmp/ 2>/dev/null
+    cp -r /tmp/phpMyAdmin-5.2.1-all-languages/* /var/www/html/pma/ 2>/dev/null
+    rm -rf /tmp/phpMyAdmin-5.2.1-all-languages
+fi
+chown -R www-data:www-data /var/www/html/pma 2>/dev/null || true
+
+# Create separate nginx config for phpmyadmin on port 8080
+cat > /etc/nginx/sites-available/phpmyadmin <<'NGINX'
+server {
+    listen 8080 default_server;
+    root /var/www/html/pma;
+    index index.php;
+    location / { try_files $uri $uri/ /index.php?$query_string; }
+    location ~ \.php$ {
+        fastcgi_pass 127.0.0.1:9000;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+}
+NGINX
+ln -sf /etc/nginx/sites-available/phpmyadmin /etc/nginx/sites-enabled/phpmyadmin
+nginx -s reload 2>/dev/null || true`)
 	}
+
+	// Configure adminer
 	if hasAdminer {
-		nginxExtra += `
-    location /adminer/ {
-        alias /var/www/html/adminer/;
-        index index.php;
-        location ~ \.php$ {
-            fastcgi_pass unix:/run/php/php8.3-fpm.sock;
-            fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-            include fastcgi_params;
-        }
-    }`
+		client.Exec(cname, "bash", "-c", `
+mkdir -p /var/www/html/adminer
+curl -sL https://www.adminer.org/latest.php -o /var/www/html/adminer/index.php 2>/dev/null
+curl -sL https://www.adminer.org/download/v5.4.4/designs/haeckel/adminer.css -o /var/www/html/adminer/adminer.css 2>/dev/null
+chmod 644 /var/www/html/adminer/index.php /var/www/html/adminer/adminer.css 2>/dev/null || true`)
 	}
-
-	if nginxExtra == "" {
-		return
-	}
-
-	fmt.Printf("  Configuring admin service nginx locations...\n")
-	// Append locations before the closing brace of the server block
-	client.Exec(cname, "bash", "-c", fmt.Sprintf(`
-sed -i '/location ~ \.php\$/i\%s' /etc/nginx/sites-available/default 2>/dev/null || true
-nginx -s reload 2>/dev/null || true
-`, nginxExtra))
 }
