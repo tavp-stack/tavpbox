@@ -114,6 +114,9 @@ var createCmd = &cobra.Command{
 		// Run startup script in background (not blocking)
 		client.Exec(cname, "bash", "-c", "nohup /usr/local/bin/tavpbox-startup.sh > /var/log/tavpbox-startup.log 2>&1 &")
 
+		// Configure nginx locations for admin services (phpmyadmin, adminer)
+		configureAdminServices(client, cname, cfg)
+
 		// Execute Lando build/run commands if present
 		if buildCmds, ok := cfg.Env["LANDO_BUILD_CMDS"]; ok && buildCmds != "" {
 			fmt.Printf("  Running build commands...\n")
@@ -527,7 +530,54 @@ if [ -f /usr/local/bin/mailpit ]; then
 fi
 
 # Keep container alive
-while true; do sleep 3600; done
+	while true; do sleep 3600; done
 `
 	return script
+}
+
+// configureAdminServices adds nginx locations for admin services
+func configureAdminServices(client *podman.Client, cname string, cfg *config.ProjectConfig) {
+	hasPhpmyadmin := cfg.Services["phpmyadmin"].Enabled
+	hasAdminer := cfg.Services["adminer"].Enabled
+
+	if !hasPhpmyadmin && !hasAdminer {
+		return
+	}
+
+	var nginxExtra string
+	if hasPhpmyadmin {
+		nginxExtra += `
+    location /pma/ {
+        alias /usr/share/phpmyadmin/;
+        index index.php;
+        location ~ \.php$ {
+            fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+            fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+            include fastcgi_params;
+        }
+    }`
+	}
+	if hasAdminer {
+		nginxExtra += `
+    location /adminer/ {
+        alias /var/www/html/adminer/;
+        index index.php;
+        location ~ \.php$ {
+            fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+            fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+            include fastcgi_params;
+        }
+    }`
+	}
+
+	if nginxExtra == "" {
+		return
+	}
+
+	fmt.Printf("  Configuring admin service nginx locations...\n")
+	// Append locations before the closing brace of the server block
+	client.Exec(cname, "bash", "-c", fmt.Sprintf(`
+sed -i '/location ~ \.php\$/i\%s' /etc/nginx/sites-available/default 2>/dev/null || true
+nginx -s reload 2>/dev/null || true
+`, nginxExtra))
 }
