@@ -25,6 +25,39 @@ var initCmd = &cobra.Command{
 			return nil
 		}
 
+		// Check for .lando.yml — auto-convert if found
+		landoPath := filepath.Join(cwd, ".lando.yml")
+		if _, err := os.Stat(landoPath); err == nil {
+			fmt.Println("✓ Found .lando.yml — auto-converting...")
+			lando, err := config.ParseLando(landoPath)
+			if err != nil {
+				return fmt.Errorf("parse .lando.yml: %w", err)
+			}
+			cfg := config.ConvertLandoToTavpbox(lando)
+			if err := config.SaveProject(".tavpbox.yml", cfg); err != nil {
+				return fmt.Errorf("save config: %w", err)
+			}
+			globalCfg, _ := config.LoadGlobal()
+			domain := cfg.Name + "." + globalCfg.DomainSuffix
+			fmt.Printf("\n✓ Migrated from Lando!\n")
+			fmt.Printf("  File:     .tavpbox.yml (from .lando.yml)\n")
+			fmt.Printf("  Recipe:   %s\n", cfg.Recipe)
+			fmt.Printf("  Webroot:  %s\n", cfg.Webroot)
+			fmt.Printf("  Services: ")
+			first := true
+			for svc, sCfg := range cfg.Services {
+				if sCfg.Enabled {
+					if !first { fmt.Print(", ") }
+					fmt.Print(svc)
+					first = false
+				}
+			}
+			fmt.Println()
+			fmt.Printf("  Domain:   http://%s\n", domain)
+			fmt.Printf("\n  Next: tavpbox create\n")
+			return nil
+		}
+
 		reader := bufio.NewReader(os.Stdin)
 
 		// Check Podman
