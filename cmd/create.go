@@ -464,9 +464,13 @@ func installService(client *podman.Client, cname, svcName string) error {
 		"mariadb": `export DEBIAN_FRONTEND=noninteractive
 apt-get install -y -qq mariadb-server mariadb-client 2>/dev/null
 mkdir -p /run/mysqld && chown mysql:mysql /run/mysqld
-mysqld --user=mysql --datadir=/var/lib/mysql &
+if [ ! -f /var/lib/mysql/ibdata1 ]; then
+    mariadb-install-db --user=mysql --datadir=/var/lib/mysql 2>/dev/null || true
+    chown -R mysql:mysql /var/lib/mysql
+fi
+mariadbd --user=mysql --datadir=/var/lib/mysql --socket=/run/mysqld/mysqld.sock --pid-file=/run/mysqld/mysqld.pid &
 sleep 3
-mysql -u root -e "CREATE DATABASE IF NOT EXISTS app; CREATE USER IF NOT EXISTS 'app'@'localhost' IDENTIFIED BY 'app'; GRANT ALL ON app.* TO 'app'@'localhost'; FLUSH PRIVILEGES;" 2>/dev/null || true`,
+mariadb -u root -e "CREATE DATABASE IF NOT EXISTS app; CREATE USER IF NOT EXISTS 'app'@'localhost' IDENTIFIED BY 'app'; GRANT ALL ON app.* TO 'app'@'localhost'; FLUSH PRIVILEGES;" 2>/dev/null || true`,
 		"mysql": `export DEBIAN_FRONTEND=noninteractive
 apt-get install -y -qq mysql-server mysql-client 2>/dev/null
 mkdir -p /run/mysqld && chown mysql:mysql /run/mysqld

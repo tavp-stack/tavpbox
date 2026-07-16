@@ -1,15 +1,19 @@
 #!/bin/bash
 # TAVPBox start script for PHP containers
 
-# Start MariaDB
+# Start MariaDB (init if needed)
 mkdir -p /run/mysqld && chown mysql:mysql /run/mysqld
-mysqld --user=mysql --datadir=/var/lib/mysql &
+if [ ! -f /var/lib/mysql/ibdata1 ]; then
+    mariadb-install-db --user=mysql --datadir=/var/lib/mysql 2>/dev/null || true
+    chown -R mysql:mysql /var/lib/mysql
+fi
+nohup mariadbd --user=mysql --datadir=/var/lib/mysql --socket=/run/mysqld/mysqld.sock --pid-file=/run/mysqld/mysqld.pid > /var/log/mariadb.log 2>&1 &
 
 # Start Redis
 redis-server --daemonize yes 2>/dev/null || true
 
-# Start PHP-FPM (official image uses docker-php-entrypoint)
-php-fpm &
+# Start PHP-FPM
+php-fpm 2>/dev/null || true
 
 # Start Nginx
 nginx 2>/dev/null || true
