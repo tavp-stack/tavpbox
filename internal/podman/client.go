@@ -3,10 +3,12 @@ package podman
 import (
 	"bytes"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"runtime"
 	"strings"
+	"time"
 )
 
 const ContainerPrefix = "tavp-"
@@ -35,23 +37,36 @@ func (c *Client) bin() string {
 	return "/usr/bin/podman"
 }
 
-// EnsureRunning checks if Podman is accessible
+// EnsureRunning checks if Podman SSH socket is actually working
 func (c *Client) EnsureRunning() error {
-	_, err := c.run("ps", "-a")
-	if err == nil {
-		return nil
+	// First, check if podman binary exists and machine is "running"
+	_, err := c.run("machine", "list", "--format", "{{.Name}}")
+	if err != nil {
+		fmt.Println("")
+		fmt.Println("  Podman is not installed or not in PATH!")
+		fmt.Println("")
+		return fmt.Errorf("podman not found")
 	}
 
+	// Check if SSH port (50312) is actually listening
+	conn, dialErr := net.DialTimeout("tcp", "127.0.0.1:50312", 2*time.Second)
+	if dialErr == nil {
+		conn.Close()
+		return nil // SSH port is listening, Podman is working
+	}
+
+	// SSH port not listening - this is the common Windows bug
 	fmt.Println("")
-	fmt.Println("  Podman is not running!")
+	fmt.Println("  Podman machine is running but SSH connection is broken!")
+	fmt.Println("  This is a known Podman Desktop issue on Windows.")
 	fmt.Println("")
-	fmt.Println("  Run this in your terminal:")
+	fmt.Println("  To fix:")
 	fmt.Println("    podman machine stop")
 	fmt.Println("    podman machine start")
 	fmt.Println("")
 	fmt.Println("  Then run this command again.")
 	fmt.Println("")
-	return fmt.Errorf("podman not running")
+	return fmt.Errorf("podman SSH connection broken")
 }
 
 // Run a podman command and return output
