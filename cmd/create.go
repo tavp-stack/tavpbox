@@ -217,9 +217,9 @@ func getImage(cfg *config.ProjectConfig, globalCfg *config.GlobalConfig) string 
 func getPorts(cfg *config.ProjectConfig, lanPort int) []string {
 	var ports []string
 
-	// Use fixed LAN port for web (e.g., 8081:80)
+	// Use fixed LAN port for web (e.g., 0.0.0.0:8081:80)
 	if lanPort > 0 {
-		ports = append(ports, fmt.Sprintf("%d:80", lanPort))
+		ports = append(ports, fmt.Sprintf("0.0.0.0:%d:80", lanPort))
 	} else {
 		ports = append(ports, "80")
 	}
