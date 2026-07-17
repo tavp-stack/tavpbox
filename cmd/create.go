@@ -567,8 +567,13 @@ if [ -f /usr/local/bin/mailpit ]; then
     nohup /usr/local/bin/mailpit --listen 0.0.0.0:8025 --smtp 0.0.0.0:1025 > /var/log/mailpit.log 2>&1 &
 fi
 
-# Keep container alive
-while true; do sleep 3600; done
+# Keep container alive - restart services if they die
+while true; do
+    sleep 10
+    if [ -f /usr/local/bin/mailpit ] && ! pgrep -x mailpit > /dev/null 2>&1; then
+        nohup /usr/local/bin/mailpit --listen 0.0.0.0:8025 --smtp 0.0.0.0:1025 > /var/log/mailpit.log 2>&1 &
+    fi
+done
 `
 	return script
 }
