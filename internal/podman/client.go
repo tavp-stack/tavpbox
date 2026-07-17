@@ -48,26 +48,53 @@ func (c *Client) EnsureRunning() error {
 	fmt.Println("  ⚠ Podman connection broken, restarting machine...")
 
 	// Stop first
+	fmt.Println("  Stopping machine...")
 	exec.Command(c.bin(), "machine", "stop").Run()
-	time.Sleep(2 * time.Second)
+	time.Sleep(3 * time.Second)
 
-	// Start
-	var stderr bytes.Buffer
+	// Start and WAIT for completion
+	fmt.Println("  Starting machine...")
 	cmd := exec.Command(c.bin(), "machine", "start")
+	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
-	_ = cmd.Start()
 
-	// Wait max 30 seconds
-	for i := 0; i < 30; i++ {
-		time.Sleep(1 * time.Second)
+	// Wait for podman machine start to complete (max 90s)
+	done := make(chan error, 1)
+	go func() {
+		done <- cmd.Run()
+	}()
+
+	select {
+	case <-time.After(90 * time.Second):
+		cmd.Process.Kill()
+		return fmt.Errorf("podman machine start timed out")
+	case <-done:
+	}
+
+	// Wait extra for SSH daemon to fully initialize
+	fmt.Println("  Waiting for SSH connection...")
+	time.Sleep(10 * time.Second)
+
+	// Verify connection multiple times for stability
+	connected := false
+	for i := 0; i < 15; i++ {
 		_, err := c.run("ps", "-a")
 		if err == nil {
-			fmt.Println("  ✓ Podman restarted and connected")
-			return nil
+			if !connected {
+				connected = true
+				fmt.Println("  First check passed, verifying stability...")
+			}
+			// Double check after delay
+			time.Sleep(3 * time.Second)
+			_, err2 := c.run("ps", "-a")
+			if err2 == nil {
+				fmt.Println("  ✓ Podman restarted and connected")
+				return nil
+			}
+			fmt.Println("  Connection unstable, retrying...")
+			connected = false
 		}
-		if (i+1)%10 == 0 {
-			fmt.Printf("  Waiting... (%ds)\n", i+1)
-		}
+		time.Sleep(2 * time.Second)
 	}
 
 	return fmt.Errorf("podman not accessible after restart")
