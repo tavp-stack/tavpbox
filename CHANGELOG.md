@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.11.1
+
+### Fix (Critical)
+- Mailpit process dies silently after container restart (#5, #6)
+- Added health check in startup loop (every 10s)
+- Auto-restart mailpit if process dies
+- Applied to both start.sh and buildStartupScript()
+
 ## v1.11.0
 
 ### Fix (Critical)
