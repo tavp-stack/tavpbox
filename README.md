@@ -375,6 +375,31 @@ tavpbox proxy:start
 
 ---
 
+## Status Terkini
+
+**Versi:** v1.11.0 (stable)
+
+**Sudah bisa:**
+- `tavpbox init` — auto-detect `.lando.yml` + convert
+- `tavpbox create` — create container with pre-built image
+- `tavpbox start` — auto-fix Podman if needed + start container + proxy
+- `tavpbox destroy --yes` — destroy container
+- `tavpbox ssh` — SSH into container
+- `tavpbox expose` — show LAN URLs (fixed ports 8081-8999)
+- `tavpbox proxy:start/stop/status` — manage proxy
+- `tavpbox tooling` — run composer, npm, artisan, etc.
+- 8/8 Lando projects migrated & working
+- Wildcard HTTPS (Let's Encrypt DNS-01)
+- Web panel (localhost:5000)
+
+**Diketahui:**
+- WSL2 requires `networkingMode=mirrored` in `.wslconfig` (auto-created by tavpbox)
+- `events.post-start` in `.tavpbox.yml` not auto-executed during create (manual step needed)
+
+**Development:** Gitea (git.glotama.com/tavp-stack/tavp-box) — Release mirror ke GitHub
+
+---
+
 ## License
 
 MIT
