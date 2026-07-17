@@ -38,56 +38,38 @@ func (c *Client) bin() string {
 
 // EnsureRunning checks if Podman is accessible, starts machine if needed
 func (c *Client) EnsureRunning() error {
-	// Quick check: can we connect? (<1 second)
+	// Quick check: can we connect?
 	_, err := c.run("version")
 	if err == nil {
 		return nil // Podman is running
 	}
 
-	// Not running, try to start (max 15 seconds)
-	fmt.Println("  Starting Podman...")
-	var stderr bytes.Buffer
+	// Not running - try to start, but don't block forever
+	fmt.Println("  ⚠ Podman not running, attempting auto-start...")
+
+	// Try machine start in background
 	cmd := exec.Command(c.bin(), "machine", "start")
-	cmd.Stderr = &stderr
-	_ = cmd.Start()
+	cmd.Start()
 
-	// Wait max 15 seconds
-	done := make(chan error, 1)
-	go func() {
-		done <- cmd.Wait()
-	}()
-
-	select {
-	case <-time.After(15 * time.Second):
-		// Timeout - don't block, just warn
-		cmd.Process.Kill()
-		fmt.Println("  ⚠ Podman machine is slow to start")
-		fmt.Println("  Open Podman Desktop and try again")
-		return fmt.Errorf("podman not ready - start Podman Desktop first")
-	case err := <-done:
-		if err != nil {
-			errMsg := stderr.String()
-			if strings.Contains(errMsg, "already running") {
-				// Already running, wait for socket
-				for i := 0; i < 10; i++ {
-					time.Sleep(1 * time.Second)
-					_, err := c.run("version")
-					if err == nil {
-						return nil
-					}
-				}
-			}
-			return fmt.Errorf("podman: %s", strings.TrimSpace(errMsg))
+	// Wait max 10 seconds
+	for i := 0; i < 10; i++ {
+		time.Sleep(1 * time.Second)
+		_, err := c.run("version")
+		if err == nil {
+			fmt.Println("  ✓ Podman started")
+			return nil
 		}
 	}
 
-	// Start succeeded, quick check
-	_, err = c.run("version")
-	if err == nil {
-		fmt.Println("  ✓ Podman started")
-		return nil
-	}
-
+	// Didn't start in time - don't block, just warn
+	fmt.Println("  ✗ Podman machine is slow to start")
+	fmt.Println("")
+	fmt.Println("  To fix this permanently:")
+	fmt.Println("  1. Open Podman Desktop")
+	fmt.Println("  2. Go to Settings → General")
+	fmt.Println("  3. Enable 'Start Podman Desktop when I log in'")
+	fmt.Println("")
+	fmt.Println("  For now, open Podman Desktop and try again.")
 	return fmt.Errorf("podman not ready")
 }
 
