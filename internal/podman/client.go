@@ -46,7 +46,23 @@ func (c *Client) EnsureRunning() error {
 
 	// Podman not accessible, try to start machine
 	fmt.Println("  Starting Podman machine...")
-	exec.Command(c.bin(), "machine", "start").Run()
+	startErr := exec.Command(c.bin(), "machine", "start").Run()
+
+	// If start says "already running", that's fine - just wait and check
+	if startErr != nil {
+		errStr := startErr.Error()
+		if strings.Contains(errStr, "already running") {
+			// Machine thinks it's running, wait for socket
+			for i := 0; i < 15; i++ {
+				time.Sleep(1 * time.Second)
+				_, err := c.run("version")
+				if err == nil {
+					return nil
+				}
+			}
+			return fmt.Errorf("podman machine says running but not accessible")
+		}
+	}
 
 	// Wait for machine to be ready
 	for i := 0; i < 30; i++ {
