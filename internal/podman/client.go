@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
-	"time"
 )
 
 const ContainerPrefix = "tavp-"
