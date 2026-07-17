@@ -16,8 +16,8 @@ jobs:
         with:
           go-version: '1.22'
 
-      - name: Build
-        run: go build -o tavpbox .
+      - name: Build all platforms
+        run: make cross
 
       - name: Vet
         run: go vet ./...

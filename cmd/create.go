@@ -26,10 +26,17 @@ var createCmd = &cobra.Command{
 		client := podman.New()
 		cname := client.ContainerName(cfg.Name)
 
+		// Assign LAN port
+		lanMgr := proxy.NewLanPortManager()
+		lanPort, err := lanMgr.GetOrAssign(cfg.Name)
+		if err != nil {
+			return fmt.Errorf("assign LAN port: %w", err)
+		}
+
 		fmt.Printf("Creating box '%s' (%s recipe)...\n", cfg.Name, cfg.Recipe)
 
 		image := getImage(cfg, globalCfg)
-		ports := getPorts(cfg)
+		ports := getPorts(cfg, lanPort)
 
 		env := make(map[string]string)
 		env["APP_ENV"] = "local"
@@ -167,6 +174,7 @@ var createCmd = &cobra.Command{
 		fmt.Printf("  Direct:  http://localhost:%d\n", hostPort)
 		fmt.Printf("  HTTP:    http://%s\n", domain)
 		fmt.Printf("  HTTPS:   https://%s\n", domain)
+		fmt.Printf("  LAN:     http://%s:%d\n", proxy.GetHostIP(), lanPort)
 		if cfg.Services["mailpit"].Enabled || cfg.Services["mailhog"].Enabled {
 			fmt.Printf("  Mailpit: http://mailpit.%s\n", domain)
 		}
@@ -206,8 +214,15 @@ func getImage(cfg *config.ProjectConfig, globalCfg *config.GlobalConfig) string 
 	}
 }
 
-func getPorts(cfg *config.ProjectConfig) []string {
-	ports := []string{"80"} // Always map container port 80 to host
+func getPorts(cfg *config.ProjectConfig, lanPort int) []string {
+	var ports []string
+
+	// Use fixed LAN port for web (e.g., 8081:80)
+	if lanPort > 0 {
+		ports = append(ports, fmt.Sprintf("%d:80", lanPort))
+	} else {
+		ports = append(ports, "80")
+	}
 
 	for svcName, svcCfg := range cfg.Services {
 		if !svcCfg.Enabled {

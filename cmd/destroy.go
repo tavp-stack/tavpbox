@@ -46,6 +46,10 @@ var destroyCmd = &cobra.Command{
 		p.RemoveRoute("mailpit." + domain)
 		p.RemoveRoute("adminer." + domain)
 
+		// Release LAN port
+		lanMgr := proxy.NewLanPortManager()
+		lanMgr.Release(cfg.Name)
+
 		fmt.Printf("✓ %s destroyed\n", cfg.Name)
 		return nil
 	},

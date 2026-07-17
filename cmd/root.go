@@ -30,6 +30,7 @@ One project = one container. Simple, fast, production-like.`,
 			"proxy:status": true,
 			"config": true,
 			"tooling": true,
+			"expose": true,
 		}
 		if !skipCommands[cmd.Name()] {
 			ensureProxyRunning()

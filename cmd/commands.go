@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/tavp-stack/tavpbox/internal/config"
 	"github.com/tavp-stack/tavpbox/internal/podman"
+	"github.com/tavp-stack/tavpbox/internal/proxy"
 )
 
 var sshCmd = &cobra.Command{
@@ -94,6 +95,13 @@ var infoCmd = &cobra.Command{
 			fmt.Printf("   Direct:  http://localhost:%d\n", hostPort)
 		}
 		fmt.Printf("   Domain:  http://%s\n", domain)
+
+		// LAN URL
+		lanMgr := proxy.NewLanPortManager()
+		lanPort := lanMgr.Get(cfg.Name)
+		if lanPort > 0 {
+			fmt.Printf("   LAN:     http://%s:%d\n", proxy.GetHostIP(), lanPort)
+		}
 
 		// Services with URLs
 		var svcs []string
