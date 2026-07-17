@@ -37,36 +37,43 @@ func (c *Client) bin() string {
 	return "/usr/bin/podman"
 }
 
-// EnsureRunning checks if Podman SSH socket is actually working
+// EnsureRunning checks Podman and auto-fixes SSH if broken
 func (c *Client) EnsureRunning() error {
-	// First, check if podman binary exists and machine is "running"
-	_, err := c.run("machine", "list", "--format", "{{.Name}}")
-	if err != nil {
-		fmt.Println("")
-		fmt.Println("  Podman is not installed or not in PATH!")
-		fmt.Println("")
-		return fmt.Errorf("podman not found")
-	}
-
-	// Check if SSH port (50312) is actually listening
-	conn, dialErr := net.DialTimeout("tcp", "127.0.0.1:50312", 2*time.Second)
-	if dialErr == nil {
+	// Quick check: is SSH port listening?
+	conn, err := net.DialTimeout("tcp", "127.0.0.1:50312", 2*time.Second)
+	if err == nil {
 		conn.Close()
-		return nil // SSH port is listening, Podman is working
+		return nil // Everything works
 	}
 
-	// SSH port not listening - this is the common Windows bug
-	fmt.Println("")
-	fmt.Println("  Podman machine is running but SSH connection is broken!")
-	fmt.Println("  This is a known Podman Desktop issue on Windows.")
-	fmt.Println("")
-	fmt.Println("  To fix:")
-	fmt.Println("    podman machine stop")
-	fmt.Println("    podman machine start")
-	fmt.Println("")
-	fmt.Println("  Then run this command again.")
-	fmt.Println("")
-	return fmt.Errorf("podman SSH connection broken")
+	// SSH broken - auto fix: stop + start machine
+	fmt.Println("  ⚠ Podman SSH not responding, auto-fixing...")
+
+	fmt.Println("  → Stopping machine...")
+	stopCmd := exec.Command(c.bin(), "machine", "stop")
+	stopCmd.Run()
+	time.Sleep(3 * time.Second)
+
+	fmt.Println("  → Starting machine...")
+	startCmd := exec.Command(c.bin(), "machine", "start")
+	startCmd.Run()
+
+	// Wait for SSH port to be ready (max 60s)
+	fmt.Println("  → Waiting for connection...")
+	for i := 0; i < 60; i++ {
+		time.Sleep(1 * time.Second)
+		conn, err := net.DialTimeout("tcp", "127.0.0.1:50312", 1*time.Second)
+		if err == nil {
+			conn.Close()
+			fmt.Println("  ✓ Podman connected!")
+			return nil
+		}
+		if (i+1)%10 == 0 {
+			fmt.Printf("  → Waiting... (%ds)\n", i+1)
+		}
+	}
+
+	return fmt.Errorf("podman SSH not available after restart - try restarting Windows")
 }
 
 // Run a podman command and return output
