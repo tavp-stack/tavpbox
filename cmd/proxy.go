@@ -1,12 +1,14 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
+	"runtime"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -35,32 +37,16 @@ var proxyStopCmd = &cobra.Command{
 	Use:   "proxy:stop",
 	Short: "Stop the TAVPBox reverse proxy",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		home, _ := os.UserHomeDir()
-		pidFile := filepath.Join(home, ".tavpbox", "proxy.pid")
-		data, err := os.ReadFile(pidFile)
-		if err != nil {
+		if !isProxyRunning() {
 			fmt.Println("Proxy is not running")
 			return nil
 		}
-		pid, _ := strconv.Atoi(string(data))
-		if pid == 0 {
-			fmt.Println("Invalid PID")
-			return nil
-		}
 
-		p, err := os.FindProcess(pid)
-		if err != nil {
-			fmt.Printf("Process %d not found\n", pid)
-			os.Remove(pidFile)
-			return nil
-		}
-
-		if err := p.Kill(); err != nil {
-			fmt.Printf("Could not stop process %d: %v\n", pid, err)
-		} else {
-			fmt.Printf("Proxy stopped (PID %d)\n", pid)
-		}
-		os.Remove(pidFile)
+		killProcessOnPort(80)
+		killProcessOnPort(443)
+		home, _ := os.UserHomeDir()
+		os.Remove(filepath.Join(home, ".tavpbox", "proxy.pid"))
+		fmt.Println("Proxy stopped")
 		return nil
 	},
 }
@@ -72,12 +58,17 @@ var proxyStatusCmd = &cobra.Command{
 		if isProxyRunning() {
 			fmt.Printf("Proxy is running on port 80\n")
 
-			p := proxy.New(proxyPort)
-			routes := p.Routes()
-			if len(routes) > 0 {
-				fmt.Println("\nRoutes:")
-				for _, r := range routes {
-					fmt.Printf("  %s → %s:%d\n", r.Domain, r.IP, r.Port)
+			// Read routes from file directly
+			home, _ := os.UserHomeDir()
+			routesFile := filepath.Join(home, ".tavpbox", "proxy", "routes.json")
+			data, err := os.ReadFile(routesFile)
+			if err == nil {
+				var routes []proxy.Route
+				if err := json.Unmarshal(data, &routes); err == nil && len(routes) > 0 {
+					fmt.Println("\nRoutes:")
+					for _, r := range routes {
+						fmt.Printf("  %s → %s:%d\n", r.Domain, r.IP, r.Port)
+					}
 				}
 			}
 		} else {
@@ -87,13 +78,45 @@ var proxyStatusCmd = &cobra.Command{
 }
 
 func isProxyRunning() bool {
-	// Check if port 80 is listening (more reliable than PID check on Windows)
 	conn, err := net.DialTimeout("tcp", "127.0.0.1:80", 1*time.Second)
 	if err != nil {
 		return false
 	}
 	conn.Close()
 	return true
+}
+
+// killProcessOnPort kills whatever process is listening on the given port
+func killProcessOnPort(port int) {
+	if runtime.GOOS == "windows" {
+		// Use netstat + taskkill on Windows
+		addr := fmt.Sprintf(":%d", port)
+		out, err := exec.Command("netstat", "-ano").Output()
+		if err != nil {
+			return
+		}
+		for _, line := range strings.Split(string(out), "\n") {
+			if strings.Contains(line, addr) && strings.Contains(line, "LISTENING") {
+				fields := strings.Fields(line)
+				if len(fields) > 4 {
+					pid := fields[len(fields)-1]
+					if pid != "0" {
+						exec.Command("taskkill", "/F", "/PID", pid).Run()
+					}
+				}
+			}
+		}
+	} else {
+		// Use lsof + kill on Linux/macOS
+		out, err := exec.Command("lsof", "-ti", fmt.Sprintf(":%d", port)).Output()
+		if err == nil {
+			for _, pid := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+				if pid != "" {
+					exec.Command("kill", "-9", pid).Run()
+				}
+			}
+		}
+	}
 }
 
 func saveProxyPID() {
@@ -114,7 +137,6 @@ func ensureProxyRunning() {
 	cmd.Stderr = nil
 	cmd.Stdin = nil
 
-	// Detach process (platform-specific)
 	detachProcess(cmd)
 
 	if err := cmd.Start(); err != nil {
@@ -122,27 +144,23 @@ func ensureProxyRunning() {
 		return
 	}
 
-	// Give it a moment to start
 	time.Sleep(500 * time.Millisecond)
 	fmt.Println("  Proxy started in background (port 80)")
 }
 
 func restartProxy() {
-	// Stop existing proxy
-	home, _ := os.UserHomeDir()
-	pidFile := filepath.Join(home, ".tavpbox", "proxy.pid")
-	if data, err := os.ReadFile(pidFile); err == nil {
-		pid, _ := strconv.Atoi(string(data))
-		if pid > 0 {
-			if p, err := os.FindProcess(pid); err == nil {
-				p.Kill()
-			}
-		}
-		os.Remove(pidFile)
-	}
-	time.Sleep(500 * time.Millisecond)
+	// Kill whatever is on port 80 and 443
+	killProcessOnPort(80)
+	killProcessOnPort(443)
 
-	// Start new proxy
+	// Clean up PID file
+	home, _ := os.UserHomeDir()
+	os.Remove(filepath.Join(home, ".tavpbox", "proxy.pid"))
+
+	// Wait for ports to be free
+	time.Sleep(1 * time.Second)
+
+	// Start fresh proxy
 	ensureProxyRunning()
 }
 
