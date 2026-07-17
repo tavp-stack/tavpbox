@@ -36,68 +36,21 @@ func (c *Client) bin() string {
 	return "/usr/bin/podman"
 }
 
-// EnsureRunning checks if Podman is accessible and connection works
+// EnsureRunning checks if Podman is accessible
 func (c *Client) EnsureRunning() error {
-	// Test ACTUAL connection (not just binary)
 	_, err := c.run("ps", "-a")
 	if err == nil {
-		return nil // Podman is running and accessible
+		return nil
 	}
 
-	// Connection broken - try to restart machine
-	fmt.Println("  ⚠ Podman connection broken, restarting machine...")
-
-	// Stop first
-	fmt.Println("  Stopping machine...")
-	exec.Command(c.bin(), "machine", "stop").Run()
-	time.Sleep(3 * time.Second)
-
-	// Start and WAIT for completion
-	fmt.Println("  Starting machine...")
-	cmd := exec.Command(c.bin(), "machine", "start")
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-
-	// Wait for podman machine start to complete (max 90s)
-	done := make(chan error, 1)
-	go func() {
-		done <- cmd.Run()
-	}()
-
-	select {
-	case <-time.After(90 * time.Second):
-		cmd.Process.Kill()
-		return fmt.Errorf("podman machine start timed out")
-	case <-done:
-	}
-
-	// Wait extra for SSH daemon to fully initialize
-	fmt.Println("  Waiting for SSH connection...")
-	time.Sleep(10 * time.Second)
-
-	// Verify connection multiple times for stability
-	connected := false
-	for i := 0; i < 15; i++ {
-		_, err := c.run("ps", "-a")
-		if err == nil {
-			if !connected {
-				connected = true
-				fmt.Println("  First check passed, verifying stability...")
-			}
-			// Double check after delay
-			time.Sleep(3 * time.Second)
-			_, err2 := c.run("ps", "-a")
-			if err2 == nil {
-				fmt.Println("  ✓ Podman restarted and connected")
-				return nil
-			}
-			fmt.Println("  Connection unstable, retrying...")
-			connected = false
-		}
-		time.Sleep(2 * time.Second)
-	}
-
-	return fmt.Errorf("podman not accessible after restart")
+	fmt.Println("")
+	fmt.Println("  Podman is not running!")
+	fmt.Println("")
+	fmt.Println("  1. Open Podman Desktop")
+	fmt.Println("  2. Wait until status is green (running)")
+	fmt.Println("  3. Run this command again")
+	fmt.Println("")
+	return fmt.Errorf("podman not running")
 }
 
 // Run a podman command and return output
