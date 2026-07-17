@@ -1,5 +1,40 @@
 # Changelog
 
+## v1.11.0
+
+### Fix (Critical)
+- WSL2 SSH port forwarding: Created `.wslconfig` with `networkingMode=mirrored`
+- Root cause: Podman SSH socket (50312) listened inside WSL but wasn't forwarded to Windows
+- `podman machine list` showed "running" but `podman ps` failed
+
+### Feature
+- `EnsureRunning()`: Auto-detects and auto-fixes Podman SSH (stop + start machine)
+- Startup script: Added delays between services (MariaDB 2s, PHP-FPM 1s)
+- Startup script: Nginx retry loop (3 attempts) on container start
+- Pre-built image rebuilt with fixed startup script
+
+### Fix (LAN Access)
+- Container ports bind to `0.0.0.0` (not `127.0.0.1`) for LAN access
+- Fixed ports 8081-8999 per project with `lan-ports.json`
+- `tavpbox expose` command shows LAN URLs
+
+### Fix (Various)
+- `isProxyRunning()` uses port 80 check (not PID-based)
+- `restartProxy()` kills by port (netstat + taskkill on Windows)
+- `configureAdminServices()` auto-configure nginx for phpmyadmin/adminer
+
+## v1.10.0-v1.10.14
+
+### Feature
+- LAN access: `tavpbox expose` command with fixed ports 8081-8999
+- Auto-start Podman machine on `tavpbox start`
+- Multiple EnsureRunning iterations (SSH port check, auto-restart, etc.)
+
+### Fix
+- Caddy and Traefik code fully removed from codebase
+- Port binding: `0.0.0.0` prefix for all interfaces
+- Proxy detection: port-based instead of PID-based
+
 ## v1.4.2
 
 ### Feature
