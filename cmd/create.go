@@ -534,6 +534,18 @@ if command -v mysqld &> /dev/null; then
     mysqld --user=mysql --datadir=/var/lib/mysql &
 fi
 
+# Start PHP-FPM if installed
+if command -v php-fpm8.3 &> /dev/null; then
+    php-fpm8.3 --daemonize 2>/dev/null || true
+elif command -v php-fpm &> /dev/null; then
+    php-fpm --daemonize 2>/dev/null || true
+fi
+
+# Start Nginx if installed
+if command -v nginx &> /dev/null; then
+    nginx 2>/dev/null || true
+fi
+
 # Start Redis if installed
 if command -v redis-server &> /dev/null; then
     redis-server --daemonize yes 2>/dev/null || true

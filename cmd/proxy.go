@@ -99,12 +99,20 @@ func isProxyRunning() bool {
 	if pid == 0 {
 		return false
 	}
+
+	// Check if process with this PID exists
 	p, err := os.FindProcess(pid)
 	if err != nil {
+		os.Remove(pidFile)
 		return false
 	}
-	// On Windows, FindProcess always succeeds. Try to check if alive.
-	return p.Signal(os.Signal(nil)) == nil
+
+	// On Windows, FindProcess always succeeds. Check if process is alive.
+ alive := p.Signal(os.Signal(nil)) == nil
+	if !alive {
+		os.Remove(pidFile)
+	}
+	return alive
 }
 
 func saveProxyPID() {

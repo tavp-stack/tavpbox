@@ -48,6 +48,9 @@ var startCmd = &cobra.Command{
 			}
 		}
 
+		// Always restart proxy to ensure routes are fresh
+		restartProxy()
+
 		fmt.Printf("✓ %s started\n", cfg.Name)
 		fmt.Printf("  URL: http://%s\n", domain)
 		return nil
@@ -81,9 +84,9 @@ func startAllContainers(client *podman.Client) error {
 		started++
 	}
 
-	// Start proxy
+	// Restart proxy to ensure all routes are fresh
 	fmt.Println("\nStarting proxy...")
-	ensureProxyRunning()
+	restartProxy()
 
 	fmt.Printf("\n✓ %d containers started + proxy running\n", started)
 	return nil
@@ -140,6 +143,9 @@ var restartCmd = &cobra.Command{
 				}
 			}
 		}
+
+		// Restart proxy to ensure routes are fresh
+		restartProxy()
 
 		fmt.Printf("✓ %s restarted\n", cfg.Name)
 		fmt.Printf("  URL: http://%s\n", domain)
