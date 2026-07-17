@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -69,10 +70,7 @@ var proxyStatusCmd = &cobra.Command{
 	Short: "Show proxy status",
 	Run: func(cmd *cobra.Command, args []string) {
 		if isProxyRunning() {
-			home, _ := os.UserHomeDir()
-			pidFile := filepath.Join(home, ".tavpbox", "proxy.pid")
-			data, _ := os.ReadFile(pidFile)
-			fmt.Printf("Proxy is running (PID %s) on port %d\n", string(data), proxyPort)
+			fmt.Printf("Proxy is running on port 80\n")
 
 			p := proxy.New(proxyPort)
 			routes := p.Routes()
@@ -89,30 +87,13 @@ var proxyStatusCmd = &cobra.Command{
 }
 
 func isProxyRunning() bool {
-	home, _ := os.UserHomeDir()
-	pidFile := filepath.Join(home, ".tavpbox", "proxy.pid")
-	data, err := os.ReadFile(pidFile)
+	// Check if port 80 is listening (more reliable than PID check on Windows)
+	conn, err := net.DialTimeout("tcp", "127.0.0.1:80", 1*time.Second)
 	if err != nil {
 		return false
 	}
-	pid, _ := strconv.Atoi(string(data))
-	if pid == 0 {
-		return false
-	}
-
-	// Check if process with this PID exists
-	p, err := os.FindProcess(pid)
-	if err != nil {
-		os.Remove(pidFile)
-		return false
-	}
-
-	// On Windows, FindProcess always succeeds. Check if process is alive.
- alive := p.Signal(os.Signal(nil)) == nil
-	if !alive {
-		os.Remove(pidFile)
-	}
-	return alive
+	conn.Close()
+	return true
 }
 
 func saveProxyPID() {
