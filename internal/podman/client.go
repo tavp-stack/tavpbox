@@ -48,23 +48,51 @@ func (c *Client) EnsureRunning() error {
 	fmt.Println("  Starting Podman machine...")
 	startErr := exec.Command(c.bin(), "machine", "start").Run()
 
-	// If start says "already running", that's fine - just wait and check
+	// If start fails, handle different cases
 	if startErr != nil {
 		errStr := startErr.Error()
+
+		// Case 1: "already running" - wait for socket
 		if strings.Contains(errStr, "already running") {
-			// Machine thinks it's running, wait for socket
-			for i := 0; i < 15; i++ {
+			fmt.Println("  Machine says running, waiting for socket...")
+			for i := 0; i < 60; i++ {
+				time.Sleep(1 * time.Second)
+				_, err := c.run("version")
+				if err == nil {
+					return nil
+				}
+				// Every 10 seconds, print progress
+				if (i+1)%10 == 0 {
+					fmt.Printf("  Waiting... (%ds)\n", i+1)
+				}
+			}
+			// Still not accessible, try reset
+			fmt.Println("  Socket not ready, resetting machine...")
+			exec.Command(c.bin(), "machine", "stop").Run()
+			time.Sleep(3 * time.Second)
+			exec.Command(c.bin(), "machine", "start").Run()
+			for i := 0; i < 30; i++ {
 				time.Sleep(1 * time.Second)
 				_, err := c.run("version")
 				if err == nil {
 					return nil
 				}
 			}
-			return fmt.Errorf("podman machine says running but not accessible")
+			return fmt.Errorf("podman machine not accessible after reset")
+		}
+
+		// Case 2: Other error - wait anyway
+		fmt.Println("  Start had issues, waiting for socket...")
+		for i := 0; i < 30; i++ {
+			time.Sleep(1 * time.Second)
+			_, err := c.run("version")
+			if err == nil {
+				return nil
+			}
 		}
 	}
 
-	// Wait for machine to be ready
+	// Normal case: start succeeded, wait for ready
 	for i := 0; i < 30; i++ {
 		time.Sleep(1 * time.Second)
 		_, err := c.run("version")
