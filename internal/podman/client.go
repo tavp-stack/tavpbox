@@ -39,15 +39,28 @@ func (c *Client) bin() string {
 
 // EnsureRunning checks Podman and auto-fixes SSH if broken
 func (c *Client) EnsureRunning() error {
-	// Quick check: is SSH port listening?
-	conn, err := net.DialTimeout("tcp", "127.0.0.1:50312", 2*time.Second)
+	// Quick check: can we run podman commands?
+	_, err := c.run("ps", "-a")
 	if err == nil {
-		conn.Close()
 		return nil // Everything works
 	}
 
+	// Check SSH port
+	conn, sshErr := net.DialTimeout("tcp", "127.0.0.1:50312", 2*time.Second)
+	if conn != nil {
+		conn.Close()
+	}
+	if sshErr == nil {
+		// SSH port is up but podman command failed - try once more
+		time.Sleep(1 * time.Second)
+		_, err = c.run("ps", "-a")
+		if err == nil {
+			return nil
+		}
+	}
+
 	// SSH broken - auto fix: stop + start machine
-	fmt.Println("  ⚠ Podman SSH not responding, auto-fixing...")
+	fmt.Println("  ⚠ Podman not responding, auto-fixing...")
 
 	fmt.Println("  → Stopping machine...")
 	stopCmd := exec.Command(c.bin(), "machine", "stop")
@@ -62,18 +75,26 @@ func (c *Client) EnsureRunning() error {
 	fmt.Println("  → Waiting for connection...")
 	for i := 0; i < 60; i++ {
 		time.Sleep(1 * time.Second)
+
+		// Try TCP check first (faster)
 		conn, err := net.DialTimeout("tcp", "127.0.0.1:50312", 1*time.Second)
 		if err == nil {
 			conn.Close()
+		}
+
+		// Verify with actual podman command
+		_, cmdErr := c.run("ps", "-a")
+		if cmdErr == nil {
 			fmt.Println("  ✓ Podman connected!")
 			return nil
 		}
+
 		if (i+1)%10 == 0 {
 			fmt.Printf("  → Waiting... (%ds)\n", i+1)
 		}
 	}
 
-	return fmt.Errorf("podman SSH not available after restart - try restarting Windows")
+	return fmt.Errorf("podman not available after restart - try restarting Windows")
 }
 
 // Run a podman command and return output

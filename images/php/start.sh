@@ -9,14 +9,23 @@ if [ ! -f /var/lib/mysql/ibdata1 ]; then
 fi
 nohup mariadbd --user=mysql --datadir=/var/lib/mysql --socket=/run/mysqld/mysqld.sock --pid-file=/run/mysqld/mysqld.pid > /var/log/mariadb.log 2>&1 &
 
+# Wait for MariaDB
+sleep 2
+
 # Start Redis
 redis-server --daemonize yes 2>/dev/null || true
 
 # Start PHP-FPM
 php-fpm 2>/dev/null || true
 
-# Start Nginx
-nginx 2>/dev/null || true
+# Wait for PHP-FPM socket
+sleep 1
+
+# Start Nginx (retry if fails)
+for i in 1 2 3; do
+    nginx 2>/dev/null && break
+    sleep 1
+done
 
 # Start Mailpit
 nohup /usr/local/bin/mailpit --listen 0.0.0.0:8025 --smtp 0.0.0.0:1025 > /var/log/mailpit.log 2>&1 &

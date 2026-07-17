@@ -538,6 +538,12 @@ func buildStartupScript(cfg *config.ProjectConfig) string {
 if command -v mysqld &> /dev/null; then
     mkdir -p /run/mysqld && chown mysql:mysql /run/mysqld
     mysqld --user=mysql --datadir=/var/lib/mysql &
+    sleep 2
+fi
+
+# Start Redis if installed
+if command -v redis-server &> /dev/null; then
+    redis-server --daemonize yes 2>/dev/null || true
 fi
 
 # Start PHP-FPM if installed
@@ -546,15 +552,14 @@ if command -v php-fpm8.3 &> /dev/null; then
 elif command -v php-fpm &> /dev/null; then
     php-fpm --daemonize 2>/dev/null || true
 fi
+sleep 1
 
-# Start Nginx if installed
+# Start Nginx (retry if fails)
 if command -v nginx &> /dev/null; then
-    nginx 2>/dev/null || true
-fi
-
-# Start Redis if installed
-if command -v redis-server &> /dev/null; then
-    redis-server --daemonize yes 2>/dev/null || true
+    for i in 1 2 3; do
+        nginx 2>/dev/null && break
+        sleep 1
+    done
 fi
 
 # Start Mailpit if installed
@@ -563,7 +568,7 @@ if [ -f /usr/local/bin/mailpit ]; then
 fi
 
 # Keep container alive
-	while true; do sleep 3600; done
+while true; do sleep 3600; done
 `
 	return script
 }
