@@ -38,71 +38,57 @@ func (c *Client) bin() string {
 
 // EnsureRunning checks if Podman is accessible, starts machine if needed
 func (c *Client) EnsureRunning() error {
-	// Quick check: can we connect?
+	// Quick check: can we connect? (<1 second)
 	_, err := c.run("version")
 	if err == nil {
 		return nil // Podman is running
 	}
 
-	// Podman not accessible, try to start machine
-	fmt.Println("  Starting Podman machine...")
-	startErr := exec.Command(c.bin(), "machine", "start").Run()
+	// Not running, try to start (max 15 seconds)
+	fmt.Println("  Starting Podman...")
+	var stderr bytes.Buffer
+	cmd := exec.Command(c.bin(), "machine", "start")
+	cmd.Stderr = &stderr
+	_ = cmd.Start()
 
-	// If start fails, handle different cases
-	if startErr != nil {
-		errStr := startErr.Error()
+	// Wait max 15 seconds
+	done := make(chan error, 1)
+	go func() {
+		done <- cmd.Wait()
+	}()
 
-		// Case 1: "already running" - wait for socket
-		if strings.Contains(errStr, "already running") {
-			fmt.Println("  Machine says running, waiting for socket...")
-			for i := 0; i < 60; i++ {
-				time.Sleep(1 * time.Second)
-				_, err := c.run("version")
-				if err == nil {
-					return nil
-				}
-				// Every 10 seconds, print progress
-				if (i+1)%10 == 0 {
-					fmt.Printf("  Waiting... (%ds)\n", i+1)
+	select {
+	case <-time.After(15 * time.Second):
+		// Timeout - don't block, just warn
+		cmd.Process.Kill()
+		fmt.Println("  ⚠ Podman machine is slow to start")
+		fmt.Println("  Open Podman Desktop and try again")
+		return fmt.Errorf("podman not ready - start Podman Desktop first")
+	case err := <-done:
+		if err != nil {
+			errMsg := stderr.String()
+			if strings.Contains(errMsg, "already running") {
+				// Already running, wait for socket
+				for i := 0; i < 10; i++ {
+					time.Sleep(1 * time.Second)
+					_, err := c.run("version")
+					if err == nil {
+						return nil
+					}
 				}
 			}
-			// Still not accessible, try reset
-			fmt.Println("  Socket not ready, resetting machine...")
-			exec.Command(c.bin(), "machine", "stop").Run()
-			time.Sleep(3 * time.Second)
-			exec.Command(c.bin(), "machine", "start").Run()
-			for i := 0; i < 30; i++ {
-				time.Sleep(1 * time.Second)
-				_, err := c.run("version")
-				if err == nil {
-					return nil
-				}
-			}
-			return fmt.Errorf("podman machine not accessible after reset")
-		}
-
-		// Case 2: Other error - wait anyway
-		fmt.Println("  Start had issues, waiting for socket...")
-		for i := 0; i < 30; i++ {
-			time.Sleep(1 * time.Second)
-			_, err := c.run("version")
-			if err == nil {
-				return nil
-			}
+			return fmt.Errorf("podman: %s", strings.TrimSpace(errMsg))
 		}
 	}
 
-	// Normal case: start succeeded, wait for ready
-	for i := 0; i < 30; i++ {
-		time.Sleep(1 * time.Second)
-		_, err := c.run("version")
-		if err == nil {
-			fmt.Println("  Podman machine started")
-			return nil
-		}
+	// Start succeeded, quick check
+	_, err = c.run("version")
+	if err == nil {
+		fmt.Println("  ✓ Podman started")
+		return nil
 	}
 
-	return fmt.Errorf("podman machine failed to start")
+	return fmt.Errorf("podman not ready")
 }
 
 // Run a podman command and return output
