@@ -36,41 +36,41 @@ func (c *Client) bin() string {
 	return "/usr/bin/podman"
 }
 
-// EnsureRunning checks if Podman is accessible, starts machine if needed
+// EnsureRunning checks if Podman is accessible and connection works
 func (c *Client) EnsureRunning() error {
-	// Quick check: can we connect?
-	_, err := c.run("version")
+	// Test ACTUAL connection (not just binary)
+	_, err := c.run("ps", "-a")
 	if err == nil {
-		return nil // Podman is running
+		return nil // Podman is running and accessible
 	}
 
-	// Not running - try to start, but don't block forever
-	fmt.Println("  ⚠ Podman not running, attempting auto-start...")
+	// Connection broken - try to restart machine
+	fmt.Println("  ⚠ Podman connection broken, restarting machine...")
 
-	// Try machine start in background
+	// Stop first
+	exec.Command(c.bin(), "machine", "stop").Run()
+	time.Sleep(2 * time.Second)
+
+	// Start
+	var stderr bytes.Buffer
 	cmd := exec.Command(c.bin(), "machine", "start")
-	cmd.Start()
+	cmd.Stderr = &stderr
+	_ = cmd.Start()
 
-	// Wait max 10 seconds
-	for i := 0; i < 10; i++ {
+	// Wait max 30 seconds
+	for i := 0; i < 30; i++ {
 		time.Sleep(1 * time.Second)
-		_, err := c.run("version")
+		_, err := c.run("ps", "-a")
 		if err == nil {
-			fmt.Println("  ✓ Podman started")
+			fmt.Println("  ✓ Podman restarted and connected")
 			return nil
+		}
+		if (i+1)%10 == 0 {
+			fmt.Printf("  Waiting... (%ds)\n", i+1)
 		}
 	}
 
-	// Didn't start in time - don't block, just warn
-	fmt.Println("  ✗ Podman machine is slow to start")
-	fmt.Println("")
-	fmt.Println("  To fix this permanently:")
-	fmt.Println("  1. Open Podman Desktop")
-	fmt.Println("  2. Go to Settings → General")
-	fmt.Println("  3. Enable 'Start Podman Desktop when I log in'")
-	fmt.Println("")
-	fmt.Println("  For now, open Podman Desktop and try again.")
-	return fmt.Errorf("podman not ready")
+	return fmt.Errorf("podman not accessible after restart")
 }
 
 // Run a podman command and return output
