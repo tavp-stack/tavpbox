@@ -84,7 +84,7 @@ func (c *Client) Create(name, image string, ports []string, env map[string]strin
 		args = append(args, "-v", volume)
 	}
 
-	// Add labels for Traefik
+	// Add labels
 	for key, value := range labels {
 		args = append(args, "-l", fmt.Sprintf("%s=%s", key, value))
 	}

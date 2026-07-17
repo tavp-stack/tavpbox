@@ -9,6 +9,7 @@ import (
 	"github.com/tavp-stack/tavpbox/internal/config"
 	"github.com/tavp-stack/tavpbox/internal/library"
 	"github.com/tavp-stack/tavpbox/internal/podman"
+	"github.com/tavp-stack/tavpbox/internal/proxy"
 )
 
 type APIResponse struct {
@@ -243,7 +244,16 @@ func handleDestroyProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client.RemoveTraefikRoute(name)
+	// Remove proxy route
+	globalCfg, _ := config.LoadGlobal()
+	domain := name + "." + globalCfg.DomainSuffix
+	p := proxy.New(80)
+	p.RemoveRoute(domain)
+
+	// Release LAN port
+	lanMgr := proxy.NewLanPortManager()
+	lanMgr.Release(name)
+
 	jsonOK(w, map[string]string{"status": "destroyed"})
 }
 
