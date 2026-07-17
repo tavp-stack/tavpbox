@@ -24,6 +24,12 @@ var createCmd = &cobra.Command{
 
 		globalCfg, _ := config.LoadGlobal()
 		client := podman.New()
+
+		// Ensure Podman machine is running
+		if err := client.EnsureRunning(); err != nil {
+			return fmt.Errorf("podman: %w", err)
+		}
+
 		cname := client.ContainerName(cfg.Name)
 
 		// Assign LAN port

@@ -17,6 +17,11 @@ var startCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client := podman.New()
 
+		// Ensure Podman machine is running
+		if err := client.EnsureRunning(); err != nil {
+			return fmt.Errorf("podman: %w", err)
+		}
+
 		if startAll {
 			return startAllContainers(client)
 		}
@@ -58,6 +63,11 @@ var startCmd = &cobra.Command{
 }
 
 func startAllContainers(client *podman.Client) error {
+	// Ensure Podman machine is running
+	if err := client.EnsureRunning(); err != nil {
+		return fmt.Errorf("podman: %w", err)
+	}
+
 	fmt.Println("Starting all TAVPBox containers...")
 
 	containers, err := client.List()

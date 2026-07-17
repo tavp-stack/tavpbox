@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"time"
 )
 
 const ContainerPrefix = "tavp-"
@@ -33,6 +34,31 @@ func (c *Client) bin() string {
 		return "podman"
 	}
 	return "/usr/bin/podman"
+}
+
+// EnsureRunning checks if Podman is accessible, starts machine if needed
+func (c *Client) EnsureRunning() error {
+	// Quick check: can we connect?
+	_, err := c.run("version")
+	if err == nil {
+		return nil // Podman is running
+	}
+
+	// Podman not accessible, try to start machine
+	fmt.Println("  Starting Podman machine...")
+	exec.Command(c.bin(), "machine", "start").Run()
+
+	// Wait for machine to be ready
+	for i := 0; i < 30; i++ {
+		time.Sleep(1 * time.Second)
+		_, err := c.run("version")
+		if err == nil {
+			fmt.Println("  Podman machine started")
+			return nil
+		}
+	}
+
+	return fmt.Errorf("podman machine failed to start")
 }
 
 // Run a podman command and return output
