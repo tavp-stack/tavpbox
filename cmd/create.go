@@ -157,7 +157,7 @@ var createCmd = &cobra.Command{
 			}
 		}
 		if cfg.Services["adminer"].Enabled {
-			adminerPort := client.GetHostPort(cname, "8080")
+			adminerPort := client.GetHostPort(cname, "8081")
 			if adminerPort > 0 {
 				p.AddRoute(cfg.Name+"-adminer."+globalCfg.DomainSuffix, "127.0.0.1", adminerPort)
 			}
@@ -637,6 +637,31 @@ nginx -s reload 2>/dev/null || true`)
 mkdir -p /var/www/html/adminer
 curl -sL https://www.adminer.org/latest.php -o /var/www/html/adminer/index.php 2>/dev/null
 curl -sL https://www.adminer.org/download/v5.4.4/designs/haeckel/adminer.css -o /var/www/html/adminer/adminer.css 2>/dev/null
-chmod 644 /var/www/html/adminer/index.php /var/www/html/adminer/adminer.css 2>/dev/null || true`)
+# Fix drvfs world-writable (same as phpMyAdmin fix)
+if [ -f /var/www/html/adminer/index.php ]; then
+    cp /var/www/html/adminer/index.php /etc/adminer-index.php 2>/dev/null || true
+    chmod 0644 /etc/adminer-index.php 2>/dev/null || true
+    rm -f /var/www/html/adminer/index.php
+    ln -sf /etc/adminer-index.php /var/www/html/adminer/index.php 2>/dev/null || true
+fi
+chmod 644 /var/www/html/adminer/adminer.css 2>/dev/null || true
+chown -R www-data:www-data /var/www/html/adminer 2>/dev/null || true
+# Create nginx config for adminer on port 8081 (separate from phpMyAdmin 8080)
+cat > /etc/nginx/sites-available/adminer <<'NGINX'
+server {
+    listen 8081;
+    server_name adminer;
+    root /var/www/html/adminer;
+    index index.php;
+    location / { try_files $uri $uri/ /index.php?$query_string; }
+    location ~ \.php$ {
+        fastcgi_pass 127.0.0.1:9000;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+}
+NGINX
+ln -sf /etc/nginx/sites-available/adminer /etc/nginx/sites-enabled/adminer
+nginx -s reload 2>/dev/null || true`)
 	}
 }
