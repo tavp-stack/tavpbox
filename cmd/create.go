@@ -149,26 +149,21 @@ var createCmd = &cobra.Command{
 		p := proxy.New(80)
 		p.AddRoute(domain, "127.0.0.1", hostPort)
 
-		// Add routes for services
+		// Add routes for services (single-level subdomains to match *.tavp.my.id cert)
 		if cfg.Services["mailpit"].Enabled || cfg.Services["mailhog"].Enabled {
 			mailpitPort := client.GetHostPort(cname, "8025")
 			if mailpitPort > 0 {
-				p.AddRoute("mailpit."+domain, "127.0.0.1", mailpitPort)
+				p.AddRoute(cfg.Name+"-mailpit."+globalCfg.DomainSuffix, "127.0.0.1", mailpitPort)
 			}
 		}
 		if cfg.Services["adminer"].Enabled {
 			adminerPort := client.GetHostPort(cname, "8080")
 			if adminerPort > 0 {
-				p.AddRoute("adminer."+domain, "127.0.0.1", adminerPort)
+				p.AddRoute(cfg.Name+"-adminer."+globalCfg.DomainSuffix, "127.0.0.1", adminerPort)
 			}
 		}
 		if cfg.Services["phpmyadmin"].Enabled {
-			// phpMyAdmin accessible via /pma/ path on main app
-			p.AddRoute("phpmyadmin."+domain, "127.0.0.1", hostPort)
-		}
-		if cfg.Services["phpmyadmin"].Enabled {
-			// phpMyAdmin runs on port 80 inside container via nginx
-			p.AddRoute("phpmyadmin."+domain, "127.0.0.1", hostPort)
+			p.AddRoute(cfg.Name+"-phpmyadmin."+globalCfg.DomainSuffix, "127.0.0.1", hostPort)
 		}
 
 		// Ensure HTTPS cert exists
@@ -182,13 +177,13 @@ var createCmd = &cobra.Command{
 		fmt.Printf("  HTTPS:   https://%s\n", domain)
 		fmt.Printf("  LAN:     http://%s:%d\n", proxy.GetHostIP(), lanPort)
 		if cfg.Services["mailpit"].Enabled || cfg.Services["mailhog"].Enabled {
-			fmt.Printf("  Mailpit: http://mailpit.%s\n", domain)
+			fmt.Printf("  Mailpit: http://%s-mailpit.%s\n", cfg.Name, globalCfg.DomainSuffix)
 		}
 		if cfg.Services["adminer"].Enabled {
-			fmt.Printf("  Adminer: http://adminer.%s\n", domain)
+			fmt.Printf("  Adminer: http://%s-adminer.%s\n", cfg.Name, globalCfg.DomainSuffix)
 		}
 		if cfg.Services["phpmyadmin"].Enabled {
-			fmt.Printf("  phpMyAdmin: http://phpmyadmin.%s\n", domain)
+			fmt.Printf("  phpMyAdmin: http://%s-phpmyadmin.%s\n", cfg.Name, globalCfg.DomainSuffix)
 		}
 		if ip != "" {
 			fmt.Printf("  IP:      %s\n", ip)

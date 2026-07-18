@@ -40,11 +40,12 @@ var destroyCmd = &cobra.Command{
 			return fmt.Errorf("destroy: %w", err)
 		}
 
-		// Remove proxy route
+		// Remove proxy routes (single-level subdomains)
 		p := proxy.New(80)
 		p.RemoveRoute(domain)
-		p.RemoveRoute("mailpit." + domain)
-		p.RemoveRoute("adminer." + domain)
+		p.RemoveRoute(cfg.Name + "-mailpit." + globalCfg.DomainSuffix)
+		p.RemoveRoute(cfg.Name + "-adminer." + globalCfg.DomainSuffix)
+		p.RemoveRoute(cfg.Name + "-phpmyadmin." + globalCfg.DomainSuffix)
 
 		// Release LAN port
 		lanMgr := proxy.NewLanPortManager()

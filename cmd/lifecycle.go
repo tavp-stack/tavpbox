@@ -48,7 +48,7 @@ var startCmd = &cobra.Command{
 			if cfg.Services["mailpit"].Enabled || cfg.Services["mailhog"].Enabled {
 				mailpitPort := client.GetHostPort(cname, "8025")
 				if mailpitPort > 0 {
-					p.AddRoute("mailpit."+domain, "127.0.0.1", mailpitPort)
+					p.AddRoute(cfg.Name+"-mailpit."+globalCfg.DomainSuffix, "127.0.0.1", mailpitPort)
 				}
 			}
 		}
@@ -149,7 +149,7 @@ var restartCmd = &cobra.Command{
 			if cfg.Services["mailpit"].Enabled || cfg.Services["mailhog"].Enabled {
 				mailpitPort := client.GetHostPort(cname, "8025")
 				if mailpitPort > 0 {
-					p.AddRoute("mailpit."+domain, "127.0.0.1", mailpitPort)
+					p.AddRoute(cfg.Name+"-mailpit."+globalCfg.DomainSuffix, "127.0.0.1", mailpitPort)
 				}
 			}
 		}
