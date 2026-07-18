@@ -514,7 +514,9 @@ apt-get install -y -qq phpmyadmin 2>/dev/null
 # Symlink ke webroot yang benar (bisa /var/www/html/public/pma untuk Laravel)
 mkdir -p /var/www/html/public
 ln -sf /usr/share/phpmyadmin /var/www/html/public/pma 2>/dev/null || true
-ln -sf /usr/share/phpmyadmin /var/www/html/pma 2>/dev/null || true`,
+ln -sf /usr/share/phpmyadmin /var/www/html/pma 2>/dev/null || true
+# Prevent phpMyAdmin "should not be world writable" error
+chmod 0644 /usr/share/phpmyadmin/config.inc.php 2>/dev/null || true`,
 	}
 
 	if script, ok := scripts[svcName]; ok {
@@ -598,6 +600,16 @@ if [ ! -f /var/www/html/pma/index.php ]; then
     curl -sL https://files.phpmyadmin.net/phpMyAdmin/5.2.1/phpMyAdmin-5.2.1-all-languages.tar.gz | tar xz -C /tmp/ 2>/dev/null
     cp -r /tmp/phpMyAdmin-5.2.1-all-languages/* /var/www/html/pma/ 2>/dev/null
     rm -rf /tmp/phpMyAdmin-5.2.1-all-languages
+fi
+# Fix phpMyAdmin "should not be world writable" error.
+# On WSL/drvfs mounts chmod is ignored and files stay 0777, so phpMyAdmin refuses
+# to load config.inc.php. Move the real config to a non-drvfs path (/etc) where
+# perms stick, then symlink it from the webroot. phpMyAdmin checks the target perms.
+if [ -f /var/www/html/pma/config.inc.php ]; then
+    cp /var/www/html/pma/config.inc.php /etc/pma-config.inc.php 2>/dev/null || true
+    chmod 0644 /etc/pma-config.inc.php 2>/dev/null || true
+    rm -f /var/www/html/pma/config.inc.php
+    ln -sf /etc/pma-config.inc.php /var/www/html/pma/config.inc.php 2>/dev/null || true
 fi
 chown -R www-data:www-data /var/www/html/pma 2>/dev/null || true
 
