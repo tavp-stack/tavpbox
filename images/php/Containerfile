@@ -21,7 +21,7 @@ RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install PHP extensions (only missing ones)
-RUN docker-php-ext-install pdo_mysql pdo_pgsql gd zip
+RUN docker-php-ext-install mysqli pdo_mysql pdo_pgsql gd zip
 
 # Install Phalcon
 RUN pecl channel-update pecl.php.net 2>/dev/null \
