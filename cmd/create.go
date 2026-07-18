@@ -543,21 +543,21 @@ fi
 
 # Start Redis if installed
 if command -v redis-server &> /dev/null; then
-    redis-server --daemonize yes 2>/dev/null || true
+    redis-server --daemonize yes >/dev/null 2>&1
 fi
 
 # Start PHP-FPM if installed
 if command -v php-fpm8.3 &> /dev/null; then
-    php-fpm8.3 --daemonize 2>/dev/null || true
+    php-fpm8.3 --daemonize >/dev/null 2>&1
 elif command -v php-fpm &> /dev/null; then
-    php-fpm --daemonize 2>/dev/null || true
+    php-fpm --daemonize >/dev/null 2>&1
 fi
 sleep 1
 
 # Start Nginx (retry if fails)
 if command -v nginx &> /dev/null; then
     for i in 1 2 3; do
-        nginx 2>/dev/null && break
+        nginx >/dev/null 2>&1 && break
         sleep 1
     done
 fi
@@ -567,13 +567,18 @@ if [ -f /usr/local/bin/mailpit ]; then
     nohup /usr/local/bin/mailpit --listen 0.0.0.0:8025 --smtp 0.0.0.0:1025 > /var/log/mailpit.log 2>&1 &
 fi
 
-# Keep container alive - restart services if they die
+# Health check - restart dead services (use exec to properly handle PID 1)
+exec sh -c '
 while true; do
     sleep 10
-    if [ -f /usr/local/bin/mailpit ] && ! pgrep -x mailpit > /dev/null 2>&1; then
+    if [ -f /usr/local/bin/mailpit ] && ! pgrep -x mailpit >/dev/null 2>&1; then
         nohup /usr/local/bin/mailpit --listen 0.0.0.0:8025 --smtp 0.0.0.0:1025 > /var/log/mailpit.log 2>&1 &
     fi
+    if ! pgrep nginx >/dev/null 2>&1; then
+        nginx >/dev/null 2>&1
+    fi
 done
+'
 `
 	return script
 }
