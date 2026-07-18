@@ -1,6 +1,19 @@
 # Changelog
 
-## v1.11.1
+## 0.11.2
+
+### Fix (Critical)
+- phpMyAdmin: Wrong permissions on configuration file (world writable) on WSL/drvfs mounts (#7)
+- phpMyAdmin: mysqli extension missing in PHP 8.3 image (#8)
+- Adminer: added dedicated nginx config on port 8081 with drvfs permission fix
+
+### Fix (Details)
+- `cmd/create.go`: Move phpMyAdmin `config.inc.php` to `/etc` (non-drvfs) + symlink to fix world-writable check
+- `images/php/Containerfile`: Added `mysqli` to `docker-php-ext-install` (phpMyAdmin needs it)
+- `cmd/create.go`: Adminer now has proper nginx config on port 8081 (separate from phpMyAdmin 8080)
+- `cmd/create.go`: Apply same drvfs permission fix (symlink to `/etc`) for Adminer
+
+## 0.11.1
 
 ### Fix (Critical)
 - Mailpit process dies silently after container restart (#5, #6)
@@ -8,7 +21,7 @@
 - Auto-restart mailpit if process dies
 - Applied to both start.sh and buildStartupScript()
 
-## v1.11.0
+## 0.11.0
 
 ### Fix (Critical)
 - WSL2 SSH port forwarding: Created `.wslconfig` with `networkingMode=mirrored`
@@ -31,7 +44,7 @@
 - `restartProxy()` kills by port (netstat + taskkill on Windows)
 - `configureAdminServices()` auto-configure nginx for phpmyadmin/adminer
 
-## v1.10.0-v1.10.14
+## 0.10.0-0.10.14
 
 ### Feature
 - LAN access: `tavpbox expose` command with fixed ports 8081-8999
@@ -43,7 +56,7 @@
 - Port binding: `0.0.0.0` prefix for all interfaces
 - Proxy detection: port-based instead of PID-based
 
-## v1.4.2
+## 0.4.2
 
 ### Feature
 - Pre-built images dengan semua service (MariaDB, Redis, Mailpit)
@@ -51,7 +64,7 @@
 - Start script pakai php-fpm8.2 langsung
 - Gak ada lagi apt-get timeout
 
-## v1.4.1
+## 0.4.1
 
 ### Feature
 - Pakai pre-built images (ghcr.io/tavp-stack/tavpbox-*)
@@ -59,7 +72,7 @@
 - Recipe install instant jika pakai pre-built image
 - Fallback ke apt-get jika image gak pre-built
 
-## v1.4.0
+## 0.4.0
 
 ### Feature
 - Pre-built image system (Containerfiles for PHP, Node, Go, Python)
@@ -70,21 +83,21 @@
 - Makefile targets untuk build/push official images
 - Official images: ghcr.io/tavp-stack/tavpbox-{php,node,go,python}
 
-## v1.3.4
+## 0.3.4
 
 ### Optimization
 - DEBIAN_FRONTEND=noninteractive untuk semua apt-get commands
 - Recipe install lebih cepat (kurangi interactive prompts)
 - Service install dioptimasi (mariadb, mysql, postgres, redis)
 
-## v1.3.3
+## 0.3.3
 
 ### Fix
 - Auto-start proxy on all commands (PersistentPreRun)
 - Proxy otomatis jalan saat `tavpbox create`, `start`, `restart`, `info`, dll
 - Developer gak perlu start proxy manual
 
-## v1.3.2
+## 0.3.2
 
 ### Fix
 - Auto-start services on container restart
@@ -92,7 +105,7 @@
 - Services persist across host restart (nginx, php-fpm, mariadb, redis, mailpit)
 - Container gak perlu re-install services setelah host restart
 
-## v1.3.1
+## 0.3.1
 
 ### Fix
 - Service install tanpa systemctl (langsung start process)
@@ -102,7 +115,7 @@
 - Redis: redis-server --daemonize yes
 - Semua service work tanpa systemd
 
-## v1.3.0
+## 0.3.0
 
 ### Feature
 - Wildcard cert (*.tavp.my.id) embedded di binary
@@ -110,20 +123,20 @@
 - Developer gak perlu run `tavpbox setup`
 - Admin: `tavpbox setup` + `make cert` + `make release` untuk renew
 
-## v1.2.2
+## 0.2.2
 
 ### Fix
 - setup: restart proxy setelah generate cert (cert baru langsung dipake)
 - Proxy auto-reload routes.json kalau file berubah
 
-## v1.2.1
+## 0.2.1
 
 ### Fix
 - Phalcon + Node.js diinstall otomatis untuk tavp recipe
 - Nginx fastcgi_pass pakai unix socket (bukan TCP 9000)
 - Sync recipes.go dan create.go
 
-## v1.2.0
+## 0.2.0
 
 ### Optimization
 - Recipe install 2x faster (--no-install-recommends, removed php-pear php8.3-dev gcc make)
@@ -131,7 +144,7 @@
 - Proxy auto-start before adding routes
 - Webroot auto-detect from current directory
 
-## v1.1.0
+## 0.1.0
 
 ### Architecture Change
 - LXC/LXD → Podman (rootless, daemonless)
@@ -172,7 +185,7 @@
 - `cmd/setup.go` — Dependencies + cert setup
 - `internal/api/` — REST API + embedded panel
 
-## v0.1.0
+## 0.0.1
 
 ### Initial Release
 - LXC container management

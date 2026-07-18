@@ -4,6 +4,35 @@
 
 ---
 
+## 2026-07-18 — Session: phpMyAdmin + Adminer Fix → ZeroVer 0.11.2
+
+**Waktu:** ~3 jam (08:00 - 11:30 WIB)
+
+**Apa yang dikerjakan:**
+- Fix phpMyAdmin world-writable (#7): Root cause = drvfs mount `C:\` → `chmod` diabaikan → `config.inc.php` selalu `0777`. Fix: symlink ke `/etc` (non-drvfs, perms `0644`).
+- Fix phpMyAdmin mysqli missing (#8): `images/php/Containerfile` tidak install `mysqli`. Fix: tambah `mysqli` ke `docker-php-ext-install`.
+- Add proper Adminer support: nginx config port 8081, drvfs fix, proxy route.
+- ZeroVer migration: CHANGELOG/README/WIKI → `0.11.2` (major=0, patch utama).
+
+**Commit penting:**
+- `73b9745` fix: phpMyAdmin world-writable config.inc.php on drvfs/WSL mounts (#7)
+- `7ba228a` fix: install mysqli PHP extension in php image (#8)
+- `5dfb1be` feat: add proper adminer support with dedicated nginx config (#8 follow-up)
+- `...` docs: ZeroVer 0.11.2 changelog + README + WIKI
+
+**Issues:**
+- #7 [open→fix] phpMyAdmin world-writable (fixed, commented)
+- #8 [open→fix] mysqli extension missing (fixed, commented)
+- #4 [open] events.post-start not auto-executed
+
+**Status:** Selesai — phpMyAdmin + Adminer HTTP 200 di container `tavp-tavp-web-id`
+
+**Blocker untuk sesi berikutnya:**
+- Issue #4 (events.post-start) belum dikerjakan (user minta tunda)
+- Rebuild pre-built image `ghcr.io/tavp-stack/tavpbox-php:latest` (mysqli + adminer)
+
+---
+
 ## 2026-07-17 — Session: Podman SSH Fix + v1.11.0 Release
 
 **Waktu:** ~2 jam (18:00 - 20:00 WIB)

@@ -377,7 +377,7 @@ tavpbox proxy:start
 
 ## Status Terkini
 
-**Versi:** v1.11.0 (stable)
+**Versi:** 0.11.2 (stable)
 
 **Sudah bisa:**
 - `tavpbox init` — auto-detect `.lando.yml` + convert
@@ -390,7 +390,7 @@ tavpbox proxy:start
 - `tavpbox tooling` — run composer, npm, artisan, etc.
 - 8/8 Lando projects migrated & working
 - Wildcard HTTPS (Let's Encrypt DNS-01)
-- Web panel (localhost:5000)
+- Web panel (localhost:8080)
 
 **Diketahui:**
 - WSL2 requires `networkingMode=mirrored` in `.wslconfig` (auto-created by tavpbox)

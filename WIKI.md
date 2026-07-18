@@ -1,6 +1,6 @@
 # TAVPBox — Complete Project Summary
 
-> **Versi:** v1.11.0 | **Terakhir diupdate:** 2026-07-17 | **Status:** Stable
+> **Versi:** 0.11.2 | **Terakhir diupdate:** 2026-07-18 | **Status:** Stable
 
 ---
 
@@ -64,6 +64,29 @@ TAVPBox adalah local development environment seperti [Lando](https://lando.dev),
 ---
 
 ## 3. Session History
+
+### Session 2026-07-18: phpMyAdmin + Adminer Fix → ZeroVer 0.11.2
+
+**Duration:** ~3 hours (08:00 - 11:30 WIB)
+
+**What was done:**
+- **phpMyAdmin world-writable fix (#7):** Root cause = `/var/www/html` di-mount drvfs (9p) dari `C:\`, `chmod` diabaikan → `config.inc.php` selalu `0777`. Fix: pindahkan config ke `/etc` (non-drvfs, perms `0644` menempel), symlink dari webroot.
+- **phpMyAdmin mysqli missing (#8):** `images/php/Containerfile` hanya install `pdo_mysql`, tidak `mysqli`. Fix: tambah `mysqli` ke `docker-php-ext-install`.
+- **Adminer support:** Added dedicated nginx config on port 8081 (separate from phpMyAdmin 8080), drvfs permission fix, proxy route.
+- **ZeroVer migration:** CHANGELOG/README/WIKI di-update ke `0.11.2` (major=0, patch utama).
+
+**Key Commits:**
+- `73b9745` fix: phpMyAdmin world-writable config.inc.php on drvfs/WSL mounts (#7)
+- `7ba228a` fix: install mysqli PHP extension in php image (#8)
+- `5dfb1be` feat: add proper adminer support with dedicated nginx config (#8 follow-up)
+- `...` docs: ZeroVer 0.11.2 changelog + README + WIKI
+
+**Issues:**
+- #7 [open→fix] phpMyAdmin world-writable (fixed, commented)
+- #8 [open→fix] mysqli extension missing (fixed, commented)
+- #4 [open] events.post-start not auto-executed
+
+**Version:** 0.11.2 (ZeroVer: major=0, patch incremented)
 
 ### Session 2026-07-17: Podman SSH Fix + v1.11.0 Release
 
