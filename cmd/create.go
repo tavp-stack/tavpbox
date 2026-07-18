@@ -636,7 +636,7 @@ nginx -s reload 2>/dev/null || true`)
 		client.Exec(cname, "bash", "-c", `
 mkdir -p /var/www/html/adminer
 curl -sL https://www.adminer.org/latest.php -o /var/www/html/adminer/index.php 2>/dev/null
-curl -sL https://www.adminer.org/download/v5.4.4/designs/haeckel/adminer.css -o /var/www/html/adminer/adminer.css 2>/dev/null
+curl -sL https://www.adminer.org/download/v5.5.0/designs/haeckel/adminer.css -o /var/www/html/adminer/adminer.css 2>/dev/null
 # Fix drvfs world-writable (same as phpMyAdmin fix)
 if [ -f /var/www/html/adminer/index.php ]; then
     cp /var/www/html/adminer/index.php /etc/adminer-index.php 2>/dev/null || true
