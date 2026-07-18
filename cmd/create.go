@@ -163,7 +163,10 @@ var createCmd = &cobra.Command{
 			}
 		}
 		if cfg.Services["phpmyadmin"].Enabled {
-			p.AddRoute(cfg.Name+"-phpmyadmin."+globalCfg.DomainSuffix, "127.0.0.1", hostPort)
+			phpmyadminPort := client.GetHostPort(cname, "8080")
+			if phpmyadminPort > 0 {
+				p.AddRoute(cfg.Name+"-phpmyadmin."+globalCfg.DomainSuffix, "127.0.0.1", phpmyadminPort)
+			}
 		}
 
 		// Ensure HTTPS cert exists
@@ -232,8 +235,10 @@ func getPorts(cfg *config.ProjectConfig, lanPort int) []string {
 		switch svcName {
 		case "mailpit":
 			ports = append(ports, "8025", "1025")
-		case "phpmyadmin", "adminer":
+		case "phpmyadmin":
 			ports = append(ports, "8080")
+		case "adminer":
+			ports = append(ports, "8081")
 		}
 	}
 
