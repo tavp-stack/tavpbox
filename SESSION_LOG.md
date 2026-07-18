@@ -4,6 +4,48 @@
 
 ---
 
+## 2026-07-18 — Session: phpMyAdmin + Adminer Fix → ZeroVer 0.11.2 + Webroot Issue
+
+**Waktu:** ~6 jam (08:00 - 14:30 WIB)
+
+**Apa yang dikerjakan:**
+- Fix phpMyAdmin world-writable (#7): symlink config ke `/etc` (non-drvfs)
+- Fix phpMyAdmin mysqli missing (#8): tambah `mysqli` ke `docker-php-ext-install`
+- Add Adminer support: nginx port 8081, CSS v5.5.0, proxy route
+- ZeroVer migration: v1.x.y → 0.x.y (CHANGELOG/README/WIKI)
+- GitHub Release 0.11.2: 6 binaries uploaded
+- Proxy routes fix: rewrite `routes.json` dengan format benar
+- Webroot fix (partial): ubah `.tavpbox.yml` ke `webroot: public` untuk TAVP stack projects
+- Fix nginx config via base64 (bypass PowerShell heredoc issues)
+
+**Commit penting:**
+- `73b9745` fix: phpMyAdmin world-writable config.inc.php on drvfs/WSL mounts (#7)
+- `7ba228a` fix: install mysqli PHP extension in php image (#8)
+- `5dfb1be` feat: add proper adminer support with dedicated nginx config
+- `675e505` feat: update Adminer CSS to v5.5.0 (haeckel design)
+- `ca707a5` fix: expose correct ports for phpMyAdmin (8080) and adminer (8081)
+- `6398e3a` docs: ZeroVer 0.11.2 migration
+- `841843b` chore: remove tavpbox.exe from tracking + update .gitignore
+- `0f945ba` feat: add fix-nginx.sh utility script
+
+**Issues:**
+- #7 [closed] phpMyAdmin world-writable
+- #8 [closed] mysqli extension missing
+- #9 [created] TAVP stack webroot issue (Lando migration) ← **PRIORITAS**
+- #4 [commented] events.post-start not auto-executed (ditunda)
+
+**Release:** 0.11.2 (GitHub + Gitea)
+
+**Status:** Masih berjalan — webroot fix belum selesai (HTTP 403/404)
+
+**Blocker untuk sesi berikutnya:**
+- Issue #9: TAVP stack webroot issue — `cmd/create.go` perlu update agar auto-detect `public/index.php`
+- `lula`: HTTP 404 (progress dari 403)
+- `tavp-web-id`: HTTP 403 (nginx config perlu fix)
+- Issue #4: events.post-start ditunda (user belum siap convert)
+
+---
+
 ## 2026-07-18 — Session: phpMyAdmin + Adminer Fix → ZeroVer 0.11.2
 
 **Waktu:** ~3 jam (08:00 - 11:30 WIB)
