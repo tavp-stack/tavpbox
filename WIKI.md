@@ -348,7 +348,7 @@ go test ./...
 
 - **URL:** https://git.glotama.com/tavp-stack/tavp-box
 - **Purpose:** Primary development, issues, wiki
-- **API Token:** `REDACTED-GITEA-TOKEN`
+- **API Token:** _(disimpan lokal, TIDAK di repo)_
 
 ### Documentation
 
@@ -367,7 +367,7 @@ go test ./...
 https://git.glotama.com/api/v1/repos/tavp-stack/tavp-box
 
 # Auth header
-Authorization: token REDACTED-GITEA-TOKEN
+Authorization: token <GITEA_TOKEN>
 
 # List issues
 GET /issues?state=all
