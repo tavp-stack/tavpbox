@@ -425,7 +425,7 @@ podman exec tavp-<project> bash -c "echo $b64 | base64 -d > /etc/nginx/sites-ava
 
 - **URL:** https://git.glotama.com/tavp-stack/tavp-box
 - **Purpose:** Primary development, issues, wiki
-- **API Token:** `REDACTED-GITEA-TOKEN`
+- **API Token:** _(disimpan lokal, TIDAK di repo)_
 
 ### GitHub (Release Mirror)
 
