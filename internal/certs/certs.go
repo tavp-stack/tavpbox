@@ -6,7 +6,6 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
-	"embed"
 	"encoding/pem"
 	"fmt"
 	"os"
@@ -19,9 +18,6 @@ import (
 	"github.com/go-acme/lego/v4/registration"
 )
 
-//go:embed embedded/*
-var embeddedCerts embed.FS
-
 func certsDir() string {
 	home, _ := os.UserHomeDir()
 	dir := filepath.Join(home, ".tavpbox", "certs")
@@ -29,41 +25,31 @@ func certsDir() string {
 	return dir
 }
 
-// EnsureEmbeddedCert extracts the embedded cert to ~/.tavpbox/certs/ if not present
-func EnsureEmbeddedCert(domain string) error {
+// EnsureLocalCert verifies that a valid cert for the domain already exists in
+// the local certs dir (~/.tavpbox/certs/). Certificates and private keys are
+// NEVER stored in the repository; they must be provisioned locally via
+// GenerateWildcardCert (Let's Encrypt) or placed manually by the user.
+func EnsureLocalCert(domain string) error {
 	dir := certsDir()
 	certPath := filepath.Join(dir, domain+".pem")
 	keyPath := filepath.Join(dir, domain+"-key.pem")
 
-	// Check if cert already exists and is valid
 	if isCertValid(certPath) {
 		return nil
 	}
 
-	// Extract from embedded
-	certData, err := embeddedCerts.ReadFile("embedded/" + domain + ".pem")
-	if err != nil {
-		return fmt.Errorf("embedded cert not found for %s: %w", domain, err)
+	if _, err := os.Stat(keyPath); err != nil {
+		return fmt.Errorf("no local cert for %s in %s — run cert generation or place %s.pem/%s-key.pem there", domain, dir, domain, domain)
 	}
-	keyData, err := embeddedCerts.ReadFile("embedded/" + domain + "-key.pem")
-	if err != nil {
-		return fmt.Errorf("embedded key not found for %s: %w", domain, err)
-	}
-
-	if err := os.WriteFile(certPath, certData, 0644); err != nil {
-		return fmt.Errorf("write cert: %w", err)
-	}
-	if err := os.WriteFile(keyPath, keyData, 0644); err != nil {
-		return fmt.Errorf("write key: %w", err)
-	}
-
-	return nil
+	return fmt.Errorf("local cert for %s is missing or expired in %s", domain, dir)
 }
 
-// GetWildcardCert returns the path to the wildcard cert
+// GetWildcardCert returns the path to a locally-provisioned wildcard cert.
+// Returns empty strings if no valid cert is present locally.
 func GetWildcardCert(domain string) (certPath, keyPath string) {
-	// Ensure embedded cert is extracted
-	EnsureEmbeddedCert(domain)
+	if err := EnsureLocalCert(domain); err != nil {
+		return "", ""
+	}
 
 	dir := certsDir()
 	certPath = filepath.Join(dir, domain+".pem")
