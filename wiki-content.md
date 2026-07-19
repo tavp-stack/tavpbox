@@ -244,7 +244,7 @@ go test ./...
 https://git.glotama.com/api/v1/repos/tavp-stack/tavp-box
 
 # Auth header
-Authorization: token REDACTED-GITEA-TOKEN
+Authorization: token <YOUR_GITEA_TOKEN>
 
 # List issues
 GET /issues?state=all
