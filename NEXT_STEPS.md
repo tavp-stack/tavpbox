@@ -2,7 +2,7 @@
 
 > Snapshot kondisi terakhir session — dibaca AI/session berikutnya untuk langsung lanjut tanpa reka ulang konteks.
 
-**Terakhir diupdate:** 2026-07-20 15:35 WIB
+**Terakhir diupdate:** 2026-07-20 16:25 WIB
 
 ---
 
@@ -46,7 +46,7 @@
 | README update HTTP-only | ✅ Selesai — c245732 |
 | docs.tavp.web.id update | ✅ Selesai — deployed via Vercel |
 | Wiki Gitea update | ⚠️ Perlu manual — API tidak support update |
-| Release v0.12.0 | ❌ Belum — menunggu konfirmasi |
+| Release v0.12.0 | ✅ Selesai — Gitea + GitHub |
 | Windows Task Scheduler auto-start | ❌ Belum |
 
 ## Blocker Terakhir
@@ -80,9 +80,11 @@ Tidak ada blocker. Semua Issue (#4, #9) sudah fix di v0.12.0.
 
 ## Release Info
 
-- **0.12.0** (current) — Commits: `924bf87`, `5f4d291`, `e85053a`, `c245732`
-- **0.11.2** (previous) — GitHub Release: https://github.com/tavp-stack/tavpbox/releases/tag/0.11.2
+- **0.12.0** (current) — Commits: `924bf87`, `5f4d291`, `e85053a`, `c245732`, `9c8492b`
+- **Gitea Release**: https://git.glotama.com/tavp-stack/tavp-box/releases/tag/0.12.0
+- **GitHub Release**: https://github.com/tavp-stack/tavpbox/releases/tag/0.12.0
 - **Pre-built image** — `ghcr.io/tavp-stack/tavpbox-php:latest`
+- **Binaries**: windows-amd64, darwin-amd64, darwin-arm64, linux-amd64, linux-arm64
 
 ## ZeroVer Convention
 
