@@ -189,6 +189,15 @@ func (c *Client) Remove(name string) error {
 	return err
 }
 
+// Exists checks if a container exists (running or stopped)
+func (c *Client) Exists(name string) (bool, error) {
+	_, err := c.run("inspect", name)
+	if err != nil {
+		return false, nil
+	}
+	return true, nil
+}
+
 // Exec executes a command in a running container
 func (c *Client) Exec(name string, cmdArgs ...string) (string, error) {
 	args := append([]string{"exec", name}, cmdArgs...)

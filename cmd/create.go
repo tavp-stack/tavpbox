@@ -141,6 +141,16 @@ var createCmd = &cobra.Command{
 			}
 		}
 
+		// Execute events.post-start commands
+		if len(cfg.Events.PostStart) > 0 {
+			fmt.Printf("  Running post-start events...\n")
+			for _, eventCmd := range cfg.Events.PostStart {
+				if _, err := client.Exec(cname, "bash", "-c", eventCmd); err != nil {
+					fmt.Printf("  ⚠ Event command warning: %v\n", err)
+				}
+			}
+		}
+
 		// Get container IP and host port
 		ip, _ := client.GetIP(cname)
 		hostPort := client.GetHostPort(cname, "80")

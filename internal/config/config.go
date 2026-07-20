@@ -23,6 +23,11 @@ type ToolingConfig struct {
 	Cmd     string `yaml:"cmd"`
 }
 
+// EventsConfig represents event hooks
+type EventsConfig struct {
+	PostStart []string `yaml:"post-start,omitempty"`
+}
+
 // ProjectConfig represents the project configuration (.tavpbox.yml)
 type ProjectConfig struct {
 	Name     string                   `yaml:"name"`
@@ -34,6 +39,7 @@ type ProjectConfig struct {
 	Services map[string]ServiceConfig `yaml:"services,omitempty"`
 	Tooling  map[string]ToolingConfig `yaml:"tooling,omitempty"`
 	Env      map[string]string        `yaml:"env,omitempty"`
+	Events   EventsConfig             `yaml:"events,omitempty"`
 	Proxy    map[string][]string      `yaml:"proxy,omitempty"`
 	RAM      string                   `yaml:"ram,omitempty"`
 	CPU      int                      `yaml:"cpu,omitempty"`

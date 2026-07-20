@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.12.0
+
+### Add (Features)
+- **HTTP-only mode**: All HTTPS/SSL/TLS removed — local dev uses plain HTTP only
+- **Auto-detect recipe**: `tavpbox init` auto-detects recipe from `composer.json` (Laravel/PHP), `package.json` (Node), `go.mod` (Go), `requirements.txt` (Python)
+- **events.post-start**: Auto-execute post-start commands from `.tavpbox.yml` during `tavpbox create`
+- **Auto-create on start**: `tavpbox start` auto-creates container if missing (no need for `init` + `create`)
+- **Asia/Jakarta timezone**: Default `TZ=Asia/Jakarta` for all containers (configurable via `tz:` in `.tavpbox.yml`)
+- **Timezone in Containerfiles**: All images (php, node, python, go) include `tzdata` + `ENV TZ=Asia/Jakarta`
+
+### Fix
+- **Nginx webroot**: Fixed root path handling — volume mount handles subdir, nginx always serves from `/var/www/html`
+- **Heredoc $ escaping**: Replaced bash heredoc config writing with `podman cp` approach (avoids `$uri`/$query_string` expansion issues)
+- **Containerfile updates**: Added `tzdata` package to all Containerfiles
+
+### Internal
+- `internal/proxy/proxy.go`: Removed TLS listener on port 443, removed `crypto/tls` and `certs` imports
+- `cmd/setup.go`: Removed Let's Encrypt cert generation step
+- `cmd/create.go`: Removed cert check, removed HTTPS URL from output, added events.post-start execution
+- `cmd/proxy.go`: Removed port 443 from kill/restart
+- `cmd/lifecycle.go`: Added auto-create on `tavpbox start` when container missing
+- `cmd/init.go`: Added `detectRecipe()` — auto-detect from composer.json/package.json/go.mod/requirements.txt
+- `internal/config/config.go`: Added `EventsConfig` struct, `TZ` field
+- `internal/config/lando.go`: Added events.post-start mapping, `detectRecipeFromLando()`, default `TZ`
+- `internal/podman/client.go`: Added `Copy()` and `Exists()` methods
+- All recipe installers (tavp, laravel, node, python): Use `writeNginxConfig` via `podman cp`
+
 ## 0.11.2
 
 ### Fix (Critical)

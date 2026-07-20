@@ -32,6 +32,14 @@ var startCmd = &cobra.Command{
 		}
 		cname := client.ContainerName(cfg.Name)
 
+		// Auto-create if container doesn't exist
+		exists, _ := client.Exists(cname)
+		if !exists {
+			fmt.Printf("Container for '%s' not found. Creating...\n", cfg.Name)
+			// Redirect to create command
+			return createCmd.RunE(cmd, args)
+		}
+
 		fmt.Printf("Starting '%s'...\n", cfg.Name)
 		if err := client.Start(cname); err != nil {
 			return fmt.Errorf("start: %w", err)

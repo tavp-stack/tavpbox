@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -73,6 +74,9 @@ var initCmd = &cobra.Command{
 		}
 		fmt.Println("✓ Podman ready")
 
+		// Auto-detect recipe from codebase
+		detectedRecipe := detectRecipe(cwd)
+
 		// Project name
 		defaultName := filepath.Base(cwd)
 		fmt.Printf("\nProject name [%s]: ", defaultName)
@@ -84,18 +88,36 @@ var initCmd = &cobra.Command{
 
 		// Recipe
 		recipes := []string{"tavp", "laravel", "php", "node", "go", "python", "blank"}
+		detectedIdx := 0
+		for i, r := range recipes {
+			if r == detectedRecipe {
+				detectedIdx = i + 1
+			}
+		}
 		fmt.Println("\nRecipe:")
 		for i, r := range recipes {
 			mark := " "
-			if r == "tavp" {
+			if detectedIdx > 0 && i+1 == detectedIdx {
+				mark = ">"
+			} else if r == "tavp" && detectedIdx == 0 {
 				mark = ">"
 			}
-			fmt.Printf("  %s [%d] %s\n", mark, i+1, r)
+			detectHint := ""
+			if detectedIdx > 0 && i+1 == detectedIdx {
+				detectHint = " (detected)"
+			}
+			fmt.Printf("  %s [%d] %s%s\n", mark, i+1, r, detectHint)
 		}
-		fmt.Print("Select [1]: ")
+		defaultRecipe := "tavp"
+		if detectedIdx > 0 {
+			defaultRecipe = detectedRecipe
+			fmt.Printf("Select [%d]: ", detectedIdx)
+		} else {
+			fmt.Print("Select [1]: ")
+		}
 		recipeInput, _ := reader.ReadString('\n')
 		recipeInput = strings.TrimSpace(recipeInput)
-		recipe := "tavp"
+		recipe := defaultRecipe
 		if recipeInput != "" {
 			if idx := atoi(recipeInput); idx >= 1 && idx <= len(recipes) {
 				recipe = recipes[idx-1]
@@ -191,4 +213,82 @@ func atoi(s string) int {
 		}
 	}
 	return n
+}
+
+// detectRecipe auto-detects the project recipe from codebase files.
+func detectRecipe(dir string) string {
+	// Check composer.json for PHP/Laravel
+	composerPath := filepath.Join(dir, "composer.json")
+	if data, err := os.ReadFile(composerPath); err == nil {
+		var composer struct {
+			Require    map[string]string `json:"require"`
+			RequireDev map[string]string `json:"require-dev"`
+		}
+		if json.Unmarshal(data, &composer) == nil {
+			allDeps := make(map[string]string)
+			for k, v := range composer.Require {
+				allDeps[k] = v
+			}
+			for k, v := range composer.RequireDev {
+				allDeps[k] = v
+			}
+			// Laravel detection
+			if _, ok := allDeps["laravel/framework"]; ok {
+				return "laravel"
+			}
+			// PHP project with phalcon → tavp
+			if _, ok := allDeps["phalcon/cphalcon"]; ok {
+				return "tavp"
+			}
+			// Any PHP project
+			if _, ok := allDeps["php"]; ok || len(composer.Require) > 0 {
+				return "php"
+			}
+		}
+	}
+
+	// Check package.json for Node.js
+	packagePath := filepath.Join(dir, "package.json")
+	if data, err := os.ReadFile(packagePath); err == nil {
+		var pkg struct {
+			Dependencies    map[string]string `json:"dependencies"`
+			DevDependencies map[string]string `json:"devDependencies"`
+		}
+		if json.Unmarshal(data, &pkg) == nil {
+			allDeps := make(map[string]string)
+			for k, v := range pkg.Dependencies {
+				allDeps[k] = v
+			}
+			for k, v := range pkg.DevDependencies {
+				allDeps[k] = v
+			}
+			// Next.js, Nuxt, etc. → node
+			if _, ok := allDeps["next"]; ok {
+				return "node"
+			}
+			if _, ok := allDeps["nuxt"]; ok {
+				return "node"
+			}
+			// Any Node project
+			if len(pkg.Dependencies) > 0 || len(pkg.DevDependencies) > 0 {
+				return "node"
+			}
+		}
+	}
+
+	// Check go.mod for Go
+	if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+		return "go"
+	}
+
+	// Check requirements.txt or pyproject.toml for Python
+	if _, err := os.Stat(filepath.Join(dir, "requirements.txt")); err == nil {
+		return "python"
+	}
+	if _, err := os.Stat(filepath.Join(dir, "pyproject.toml")); err == nil {
+		return "python"
+	}
+
+	// Default
+	return "tavp"
 }

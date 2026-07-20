@@ -96,7 +96,7 @@ func ConvertLandoToTavpbox(lando *LandoConfig) *ProjectConfig {
 	}
 
 	// Detect recipe from services
-	cfg.Recipe = detectRecipe(lando)
+	cfg.Recipe = detectRecipeFromLando(lando)
 
 	// Map services
 	mapServices(lando, cfg)
@@ -106,6 +106,17 @@ func ConvertLandoToTavpbox(lando *LandoConfig) *ProjectConfig {
 
 	// Map environment variables
 	mapEnvironment(lando, cfg)
+
+	// Map events (post-start)
+	if lando.Events != nil {
+		if postStart, ok := lando.Events["post-start"]; ok {
+			for _, ev := range postStart {
+				if ev.Command != "" {
+					cfg.Events.PostStart = append(cfg.Events.PostStart, ev.Command)
+				}
+			}
+		}
+	}
 
 	// Set defaults
 	if cfg.Webroot == "" {
@@ -124,7 +135,7 @@ func ConvertLandoToTavpbox(lando *LandoConfig) *ProjectConfig {
 	return cfg
 }
 
-func detectRecipe(lando *LandoConfig) string {
+func detectRecipeFromLando(lando *LandoConfig) string {
 	// Check recipe field
 	switch lando.Recipe {
 	case "lamp", "lemp":
