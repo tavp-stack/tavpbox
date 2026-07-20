@@ -7,11 +7,13 @@
 │  TAVPBox                                                │
 ├──────────────────┬──────────────────────────────────────┤
 │ Runtime          │ Podman (rootless, daemonless)        │
-│ Reverse Proxy    │ Embedded Go proxy (HTTP + HTTPS)     │
-│ HTTPS            │ Let's Encrypt wildcard cert          │
+│ Reverse Proxy    │ Embedded Go proxy (HTTP only)        │
+│ Protocol         │ HTTP only (no HTTPS complexity)      │
 │ RAM / container  │ ~50-80MB                             │
 │ 20 project       │ ~1.5GB (vs Docker ~3.2GB)           │
 │ Auto domain      │ *.tavp.my.id                         │
+│ Auto-detect      │ recipe from composer.json etc.       │
+│ Timezone         │ Asia/Jakarta default                 │
 │ Config file      │ .tavpbox.yml / .lando.yml            │
 │ Platform         │ Windows, macOS, Linux                │
 │ CLI language     │ Go (single binary)                   │
@@ -73,7 +75,7 @@ tavpbox init
 tavpbox create
 
 # 3. Open browser
-# https://my-app.tavp.my.id
+# http://my-app.tavp.my.id
 ```
 
 ### Migrasi dari Lando
@@ -81,7 +83,7 @@ tavpbox create
 ```powershell
 cd ~/lando-project
 tavpbox create
-# https://project.tavp.my.id → jalan!
+# http://project.tavp.my.id → jalan!
 ```
 
 ---
@@ -226,7 +228,7 @@ tavpbox info
 # Database:  koskosan/koskosan/koskosan
 
 tavpbox create
-# https://koskosan.tavp.my.id → jalan!
+# http://koskosan.tavp.my.id → jalan!
 ```
 
 ---
@@ -271,7 +273,7 @@ HTTPS otomatis. TAVPBox sudah include wildcard cert `*.tavp.my.id` yang valid. D
 
 ```powershell
 tavpbox create
-# https://myproject.tavp.my.id → langsung jalan
+# http://myproject.tavp.my.id → langsung jalan
 ```
 
 Cert wildcard di-embed di binary. Browser auto-trust. Expired ~90 hari, admin release binary baru.
