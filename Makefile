@@ -30,8 +30,10 @@ cert:
 		exit 1; \
 	fi
 
-# Build with embedded cert
-release: cert cross
+# Build and push base images
+IMAGE_PREFIX ?= ghcr.io/tavp-stack/tavpbox
+
+release: cross
 	@echo "Release binaries in dist/"
 
 cross: clean
