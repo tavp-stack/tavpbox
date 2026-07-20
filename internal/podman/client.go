@@ -195,6 +195,12 @@ func (c *Client) Exec(name string, cmdArgs ...string) (string, error) {
 	return c.run(args...)
 }
 
+// Copy copies a local file into a container
+func (c *Client) Copy(localPath, containerPath, containerName string) error {
+	_, err := c.run("cp", localPath, containerName+":"+containerPath)
+	return err
+}
+
 // ExecInteractive executes a command interactively
 func (c *Client) ExecInteractive(name string, cmdArgs ...string) error {
 	bin := c.bin()

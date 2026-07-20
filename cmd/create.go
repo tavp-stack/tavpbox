@@ -262,31 +262,14 @@ func installRecipe(client *podman.Client, cname string, cfg *config.ProjectConfi
 }
 
 func installPHPServer(client *podman.Client, cname string, cfg *config.ProjectConfig) error {
-	webroot := "/var/www/html"
-	if cfg.Webroot != "" && cfg.Webroot != "." {
-		webroot = "/var/www/html/" + cfg.Webroot
-	}
+	// webroot config determines which subdir to mount, but nginx always serves from /var/www/html
+	// because that's where the volume is mounted.
 
-	// Check if packages are already installed (pre-built image)
-	_, err := client.Exec(cname, "bash", "-c", "command -v nginx && command -v php-fpm")
-	if err == nil {
-		// Already installed, just configure and start
-		// Install Phalcon if missing
-		client.Exec(cname, "bash", "-c", "pecl install phalcon 2>/dev/null && echo 'extension=phalcon.so' > /usr/local/etc/php/conf.d/phalcon.ini || true")
-		// Configure nginx with correct webroot
-		_, err = client.Exec(cname, "bash", "-c", fmt.Sprintf(`
-mkdir -p /run/php
-
-# Create storage symlinks for Laravel/TAVP
-mkdir -p /tmp/storage/framework/views /tmp/storage/framework/cache /tmp/storage/framework/sessions /tmp/bootstrap-cache
-rm -rf /var/www/html/storage /var/www/html/bootstrap/cache 2>/dev/null || true
-ln -sf /tmp/storage /var/www/html/storage
-ln -sf /tmp/bootstrap-cache /var/www/html/bootstrap/cache
-
-cat > /etc/nginx/sites-available/default <<'NGINX'
-server {
+	// Nginx config content (written via podman cp to avoid shell escaping issues with $)
+	// Always use /var/www/html because that's where the volume is mounted
+	nginxCfg := `server {
     listen 80 default_server;
-    root %s;
+    root /var/www/html;
     index index.php index.html;
     location / { try_files $uri $uri/ /index.php?$query_string; }
     location ~ \.php$ {
@@ -296,15 +279,28 @@ server {
     }
     location ~ /\.ht { deny all; }
 }
-NGINX
-php-fpm &
-nginx 2>/dev/null || true
-`, webroot))
-		return err
+`
+
+	// Check if packages are already installed (pre-built image)
+	_, err := client.Exec(cname, "bash", "-c", "command -v nginx && command -v php-fpm")
+	if err == nil {
+		// Already installed, just configure and start
+		client.Exec(cname, "bash", "-c", "pecl install phalcon 2>/dev/null && echo 'extension=phalcon.so' > /usr/local/etc/php/conf.d/phalcon.ini || true")
+
+		// Create storage symlinks for Laravel/TAVP
+		client.Exec(cname, "bash", "-c", "mkdir -p /run/php /tmp/storage/framework/views /tmp/storage/framework/cache /tmp/storage/framework/sessions /tmp/bootstrap-cache && rm -rf /var/www/html/storage /var/www/html/bootstrap/cache 2>/dev/null || true && ln -sf /tmp/storage /var/www/html/storage && ln -sf /tmp/bootstrap-cache /var/www/html/bootstrap/cache")
+
+		// Write nginx config via podman cp (avoids $ escaping issues)
+		if err := writeNginxConfig(client, cname, nginxCfg); err != nil {
+			return err
+		}
+
+		client.Exec(cname, "bash", "-c", "php-fpm & nginx 2>/dev/null || true")
+		return nil
 	}
 
 	// Not pre-built, install from scratch
-	_, err = client.Exec(cname, "bash", "-c", fmt.Sprintf(`
+	_, err = client.Exec(cname, "bash", "-c", `
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y -qq --no-install-recommends nginx php8.3-fpm php8.3-cli php8.3-mbstring php8.3-xml php8.3-curl php8.3-zip php8.3-bcmath php8.3-intl php8.3-mysql php8.3-gd composer curl wget git unzip
@@ -314,41 +310,24 @@ pecl install phalcon 2>/dev/null || true
 echo "extension=phalcon.so" > /etc/php/8.3/mods-available/phalcon.ini
 phpenmod phalcon 2>/dev/null || true
 curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-apt-get install -y -qq --no-install-recommends nodejs
-cat > /etc/nginx/sites-available/default <<'NGINX'
-server {
-    listen 80 default_server;
-    root %s;
-    index index.php index.html;
-    location / { try_files $uri $uri/ /index.php?$query_string; }
-    location ~ \.php$ {
-        fastcgi_pass 127.0.0.1:9000;
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-        include fastcgi_params;
-    }
-    location ~ /\.ht { deny all; }
-}
-NGINX
-service php8.3-fpm start 2>/dev/null; service nginx start 2>/dev/null
-`, webroot))
+apt-get install -y -qq --no-install-recommends nodejs`)
+	if err != nil {
+		return err
+	}
+
+	// Write nginx config
+	if err := writeNginxConfig(client, cname, nginxCfg); err != nil {
+		return err
+	}
+
+	_, err = client.Exec(cname, "bash", "-c", "service php8.3-fpm start 2>/dev/null; service nginx start 2>/dev/null")
 	return err
 }
 
 func installLaravel(client *podman.Client, cname string, cfg *config.ProjectConfig) error {
-	webroot := "/var/www/html"
-	if cfg.Webroot != "" && cfg.Webroot != "." {
-		webroot = "/var/www/html/" + cfg.Webroot
-	}
-
-	// Check if packages are already installed (pre-built image)
-	_, err := client.Exec(cname, "bash", "-c", "command -v nginx && command -v php-fpm")
-	if err == nil {
-		_, err = client.Exec(cname, "bash", "-c", fmt.Sprintf(`
-mkdir -p /run/php
-cat > /etc/nginx/sites-available/default <<'NGINX'
-server {
+	nginxCfg := `server {
     listen 80 default_server;
-    root %s;
+    root /var/www/html;
     index index.php;
     location / { try_files $uri $uri/ /index.php?$query_string; }
     location ~ \.php$ {
@@ -358,92 +337,75 @@ server {
     }
     location ~ /\.ht { deny all; }
 }
-NGINX
-php-fpm &
-nginx 2>/dev/null || true
-`, webroot))
-		return err
+`
+
+	// Check if packages are already installed (pre-built image)
+	_, err := client.Exec(cname, "bash", "-c", "command -v nginx && command -v php-fpm")
+	if err == nil {
+		client.Exec(cname, "bash", "-c", "mkdir -p /run/php")
+		if err := writeNginxConfig(client, cname, nginxCfg); err != nil {
+			return err
+		}
+		client.Exec(cname, "bash", "-c", "php-fpm & nginx 2>/dev/null || true")
+		return nil
 	}
 
 	// Not pre-built, install from scratch
-	_, err = client.Exec(cname, "bash", "-c", fmt.Sprintf(`
+	_, err = client.Exec(cname, "bash", "-c", `
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y -qq --no-install-recommends nginx php8.3-fpm php8.3-cli php8.3-mbstring php8.3-xml php8.3-curl php8.3-zip php8.3-bcmath php8.3-intl php8.3-mysql php8.3-gd composer curl wget git unzip
 curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-apt-get install -y -qq --no-install-recommends nodejs
+apt-get install -y -qq --no-install-recommends nodejs`)
+	if err != nil {
+		return err
+	}
 
-cat > /etc/nginx/sites-available/default <<'NGINX'
-server {
-    listen 80 default_server;
-    root %s;
-    index index.php;
-    location / { try_files $uri $uri/ /index.php?$query_string; }
-    location ~ \.php$ {
-        fastcgi_pass unix:/run/php/php8.3-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-        include fastcgi_params;
-    }
-    location ~ /\.ht { deny all; }
-}
-NGINX
-
-service php8.3-fpm start 2>/dev/null; service nginx start 2>/dev/null
-`, webroot))
+	if err := writeNginxConfig(client, cname, nginxCfg); err != nil {
+		return err
+	}
+	_, err = client.Exec(cname, "bash", "-c", "service php8.3-fpm start 2>/dev/null; service nginx start 2>/dev/null")
 	return err
 }
 
 func installNode(client *podman.Client, cname string, cfg *config.ProjectConfig) error {
-	webroot := "/var/www/html"
-	if cfg.Webroot != "" && cfg.Webroot != "." {
-		webroot = "/var/www/html/" + cfg.Webroot
-	}
+	nginxCfg := `server {
+    listen 80;
+    root /var/www/html;
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+    }
+}
+`
 
 	// Check if packages are already installed (pre-built image)
 	_, err := client.Exec(cname, "bash", "-c", "command -v nginx && command -v node")
 	if err == nil {
-		_, err = client.Exec(cname, "bash", "-c", fmt.Sprintf(`
-cat > /etc/nginx/sites-available/default <<'NGINX'
-server {
-    listen 80;
-    root %s;
-    location / {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-    }
-}
-NGINX
-nginx 2>/dev/null || true
-`, webroot))
-		return err
+		if err := writeNginxConfig(client, cname, nginxCfg); err != nil {
+			return err
+		}
+		client.Exec(cname, "bash", "-c", "nginx 2>/dev/null || true")
+		return nil
 	}
 
 	// Not pre-built, install from scratch
-	_, err = client.Exec(cname, "bash", "-c", fmt.Sprintf(`
+	_, err = client.Exec(cname, "bash", "-c", `
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y -qq --no-install-recommends nginx
-npm install -g yarn pnpm
+npm install -g yarn pnpm`)
+	if err != nil {
+		return err
+	}
 
-cat > /etc/nginx/sites-available/default <<'NGINX'
-server {
-    listen 80;
-    root %s;
-    location / {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-    }
-}
-NGINX
-
-systemctl start nginx 2>/dev/null || service nginx start
-`, webroot))
+	if err := writeNginxConfig(client, cname, nginxCfg); err != nil {
+		return err
+	}
+	_, err = client.Exec(cname, "bash", "-c", "systemctl start nginx 2>/dev/null || service nginx start")
 	return err
 }
 
@@ -453,29 +415,28 @@ func installGo(client *podman.Client, cname string, cfg *config.ProjectConfig) e
 }
 
 func installPython(client *podman.Client, cname string, cfg *config.ProjectConfig) error {
-	webroot := "/var/www/html"
-	if cfg.Webroot != "" && cfg.Webroot != "." {
-		webroot = "/var/www/html/" + cfg.Webroot
-	}
-
-	_, err := client.Exec(cname, "bash", "-c", fmt.Sprintf(`
-export DEBIAN_FRONTEND=noninteractive
-apt-get update -qq
-apt-get install -y -qq --no-install-recommends nginx python3 python3-pip python3-venv curl
-
-cat > /etc/nginx/sites-available/default <<'NGINX'
-server {
+	nginxCfg := `server {
     listen 80;
-    root %s;
+    root /var/www/html;
     location / {
         proxy_pass http://127.0.0.1:8000;
         proxy_set_header Host $host;
     }
 }
-NGINX
+`
 
-systemctl start nginx 2>/dev/null || service nginx start
-`, webroot))
+	_, err := client.Exec(cname, "bash", "-c", `
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -qq
+apt-get install -y -qq --no-install-recommends nginx python3 python3-pip python3-venv curl`)
+	if err != nil {
+		return err
+	}
+
+	if err := writeNginxConfig(client, cname, nginxCfg); err != nil {
+		return err
+	}
+	_, err = client.Exec(cname, "bash", "-c", "systemctl start nginx 2>/dev/null || service nginx start")
 	return err
 }
 
@@ -538,6 +499,22 @@ chmod 0644 /usr/share/phpmyadmin/config.inc.php 2>/dev/null || true`,
 		return err
 	}
 	return nil
+}
+
+// writeNginxConfig writes an nginx config to a temp file and copies it into the container.
+// dest is the container path, e.g. "/etc/nginx/sites-available/default"
+func writeNginxConfigTo(client *podman.Client, cname, config, dest string) error {
+	tmpFile := filepath.Join(os.TempDir(), "tavpbox-nginx-"+cname+".conf")
+	if err := os.WriteFile(tmpFile, []byte(config), 0644); err != nil {
+		return err
+	}
+	defer os.Remove(tmpFile)
+	return client.Copy(tmpFile, dest, cname)
+}
+
+// writeNginxConfig writes the default nginx config into the container.
+func writeNginxConfig(client *podman.Client, cname, config string) error {
+	return writeNginxConfigTo(client, cname, config, "/etc/nginx/sites-available/default")
 }
 
 // buildStartupScript creates a script that starts all installed services
@@ -615,21 +592,15 @@ if [ ! -f /var/www/html/pma/index.php ]; then
     cp -r /tmp/phpMyAdmin-5.2.1-all-languages/* /var/www/html/pma/ 2>/dev/null
     rm -rf /tmp/phpMyAdmin-5.2.1-all-languages
 fi
-# Fix phpMyAdmin "should not be world writable" error.
-# On WSL/drvfs mounts chmod is ignored and files stay 0777, so phpMyAdmin refuses
-# to load config.inc.php. Move the real config to a non-drvfs path (/etc) where
-# perms stick, then symlink it from the webroot. phpMyAdmin checks the target perms.
 if [ -f /var/www/html/pma/config.inc.php ]; then
     cp /var/www/html/pma/config.inc.php /etc/pma-config.inc.php 2>/dev/null || true
     chmod 0644 /etc/pma-config.inc.php 2>/dev/null || true
     rm -f /var/www/html/pma/config.inc.php
     ln -sf /etc/pma-config.inc.php /var/www/html/pma/config.inc.php 2>/dev/null || true
 fi
-chown -R www-data:www-data /var/www/html/pma 2>/dev/null || true
+chown -R www-data:www-data /var/www/html/pma 2>/dev/null || true`)
 
-# Create separate nginx config for phpmyadmin on port 8080
-cat > /etc/nginx/sites-available/phpmyadmin <<'NGINX'
-server {
+		pmaNginx := `server {
     listen 8080 default_server;
     root /var/www/html/pma;
     index index.php;
@@ -640,9 +611,9 @@ server {
         include fastcgi_params;
     }
 }
-NGINX
-ln -sf /etc/nginx/sites-available/phpmyadmin /etc/nginx/sites-enabled/phpmyadmin
-nginx -s reload 2>/dev/null || true`)
+`
+		writeNginxConfigTo(client, cname, pmaNginx, "/etc/nginx/sites-available/phpmyadmin")
+		client.Exec(cname, "bash", "-c", "ln -sf /etc/nginx/sites-available/phpmyadmin /etc/nginx/sites-enabled/phpmyadmin && nginx -s reload 2>/dev/null || true")
 	}
 
 	// Configure adminer
@@ -651,7 +622,6 @@ nginx -s reload 2>/dev/null || true`)
 mkdir -p /var/www/html/adminer
 curl -sL https://www.adminer.org/latest.php -o /var/www/html/adminer/index.php 2>/dev/null
 curl -sL https://www.adminer.org/download/v5.5.0/designs/haeckel/adminer.css -o /var/www/html/adminer/adminer.css 2>/dev/null
-# Fix drvfs world-writable (same as phpMyAdmin fix)
 if [ -f /var/www/html/adminer/index.php ]; then
     cp /var/www/html/adminer/index.php /etc/adminer-index.php 2>/dev/null || true
     chmod 0644 /etc/adminer-index.php 2>/dev/null || true
@@ -659,10 +629,9 @@ if [ -f /var/www/html/adminer/index.php ]; then
     ln -sf /etc/adminer-index.php /var/www/html/adminer/index.php 2>/dev/null || true
 fi
 chmod 644 /var/www/html/adminer/adminer.css 2>/dev/null || true
-chown -R www-data:www-data /var/www/html/adminer 2>/dev/null || true
-# Create nginx config for adminer on port 8081 (separate from phpMyAdmin 8080)
-cat > /etc/nginx/sites-available/adminer <<'NGINX'
-server {
+chown -R www-data:www-data /var/www/html/adminer 2>/dev/null || true`)
+
+		adminerNginx := `server {
     listen 8081;
     server_name adminer;
     root /var/www/html/adminer;
@@ -674,8 +643,8 @@ server {
         include fastcgi_params;
     }
 }
-NGINX
-ln -sf /etc/nginx/sites-available/adminer /etc/nginx/sites-enabled/adminer
-nginx -s reload 2>/dev/null || true`)
+`
+		writeNginxConfigTo(client, cname, adminerNginx, "/etc/nginx/sites-available/adminer")
+		client.Exec(cname, "bash", "-c", "ln -sf /etc/nginx/sites-available/adminer /etc/nginx/sites-enabled/adminer && nginx -s reload 2>/dev/null || true")
 	}
 }
