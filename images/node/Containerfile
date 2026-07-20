@@ -3,7 +3,9 @@ FROM node:20-alpine
 LABEL org.opencontainers.image.source="https://github.com/tavp-stack/tavpbox"
 LABEL org.opencontainers.image.description="TAVPBox Node.js base image with Nginx"
 
-RUN apk add --no-cache nginx curl
+ENV TZ=Asia/Jakarta
+
+RUN apk add --no-cache nginx curl tzdata
 
 COPY nginx.conf /etc/nginx/http.d/default.conf
 COPY start.sh /usr/local/bin/tavpbox-start.sh

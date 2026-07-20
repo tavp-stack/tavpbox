@@ -111,6 +111,9 @@ func ConvertLandoToTavpbox(lando *LandoConfig) *ProjectConfig {
 	if cfg.Webroot == "" {
 		cfg.Webroot = "public"
 	}
+	if cfg.TZ == "" {
+		cfg.TZ = "Asia/Jakarta"
+	}
 	if cfg.RAM == "" {
 		cfg.RAM = "512MB"
 	}

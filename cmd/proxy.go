@@ -43,7 +43,6 @@ var proxyStopCmd = &cobra.Command{
 		}
 
 		killProcessOnPort(80)
-		killProcessOnPort(443)
 		home, _ := os.UserHomeDir()
 		os.Remove(filepath.Join(home, ".tavpbox", "proxy.pid"))
 		fmt.Println("Proxy stopped")
@@ -149,9 +148,8 @@ func ensureProxyRunning() {
 }
 
 func restartProxy() {
-	// Kill whatever is on port 80 and 443
+	// Kill whatever is on port 80
 	killProcessOnPort(80)
-	killProcessOnPort(443)
 
 	// Clean up PID file
 	home, _ := os.UserHomeDir()

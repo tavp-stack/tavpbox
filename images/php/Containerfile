@@ -4,6 +4,7 @@ LABEL org.opencontainers.image.source="https://github.com/tavp-stack/tavpbox"
 LABEL org.opencontainers.image.description="TAVPBox PHP 8.3 with Nginx, MariaDB, Redis, Mailpit"
 
 ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Asia/Jakarta
 
 # Install system packages
 RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
@@ -17,6 +18,7 @@ RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
     libzip-dev \
     libsqlite3-dev \
     locales \
+    tzdata \
     curl wget git unzip \
     && rm -rf /var/lib/apt/lists/*
 
