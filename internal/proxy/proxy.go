@@ -1,7 +1,6 @@
 package proxy
 
 import (
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -12,8 +11,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/tavp-stack/tavpbox/internal/certs"
 )
 
 type Route struct {
@@ -112,35 +109,9 @@ func (p *Proxy) Start() error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", p.handler)
 
-	// Build TLS config using mkcert wildcard cert
-	tlsConfig := &tls.Config{
-		GetCertificate: func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
-			certPath, keyPath := certs.GetWildcardCert("tavp.my.id")
-			if certPath == "" {
-				return nil, fmt.Errorf("no cert found, run: tavpbox setup")
-			}
-			cert, err := tls.LoadX509KeyPair(certPath, keyPath)
-			if err != nil {
-				return nil, err
-			}
-			return &cert, nil
-		},
-	}
-
-	// Start HTTP on port 80
-	go func() {
-		fmt.Printf("TAVPBox proxy HTTP on :80\n")
-		http.ListenAndServe(":80", mux)
-	}()
-
-	// Start HTTPS on port 443
-	fmt.Printf("TAVPBox proxy HTTPS on :443\n")
-	server := &http.Server{
-		Addr:      ":443",
-		Handler:   mux,
-		TLSConfig: tlsConfig,
-	}
-	return server.ListenAndServeTLS("", "")
+	// Start HTTP on port 80 (HTTP only — no HTTPS)
+	fmt.Printf("TAVPBox proxy HTTP on :80\n")
+	return http.ListenAndServe(":80", mux)
 }
 
 // watchRoutes periodically checks for changes to routes.json

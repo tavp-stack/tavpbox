@@ -6,8 +6,6 @@ import (
 	"runtime"
 
 	"github.com/spf13/cobra"
-	"github.com/tavp-stack/tavpbox/internal/certs"
-	"github.com/tavp-stack/tavpbox/internal/config"
 	"github.com/tavp-stack/tavpbox/internal/podman"
 )
 
@@ -39,27 +37,9 @@ var setupCmd = &cobra.Command{
 			fmt.Println("  ✓ Podman installed")
 		}
 
-		// Step 2: HTTPS cert
-		fmt.Println("\n[2/2] Setting up HTTPS...")
-		globalCfg, _ := config.LoadGlobal()
-		if globalCfg.CloudflareToken == "" {
-			fmt.Println("  ⚠ Cloudflare token not set")
-			fmt.Println("  > Run: tavpbox config set cloudflare_token <token>")
-			fmt.Println("  > Run: tavpbox config set cloudflare_zone <zone_id>")
-		} else {
-			fmt.Println("  Generating wildcard cert via Let's Encrypt...")
-		if _, _, err := certs.GenerateWildcardCert("tavp.my.id", globalCfg.CloudflareToken); err != nil {
-			fmt.Printf("  ⚠ Cert generation failed: %v\n", err)
-		} else {
-			fmt.Println("  ✓ Wildcard cert generated (*.tavp.my.id)")
-			fmt.Println("  Cert expires in ~90 days, auto-renew on next tavpbox setup")
-
-			// Restart proxy to pick up new cert
-			fmt.Println("  Restarting proxy...")
-			restartProxy()
-			fmt.Println("  ✓ Proxy restarted with new cert")
-		}
-		}
+		// Step 2: HTTPS cert (disabled — HTTP only)
+		fmt.Println("\n[2/2] HTTPS disabled (HTTP only)")
+		fmt.Println("  All local dev uses plain HTTP")
 
 		fmt.Println("\n✓ Setup complete! Run: tavpbox init")
 		return nil

@@ -30,6 +30,7 @@ type ProjectConfig struct {
 	Webroot  string                   `yaml:"webroot,omitempty"`
 	Image    string                   `yaml:"image,omitempty"`
 	Hostname string                   `yaml:"hostname,omitempty"`
+	TZ       string                   `yaml:"tz,omitempty"`
 	Services map[string]ServiceConfig `yaml:"services,omitempty"`
 	Tooling  map[string]ToolingConfig `yaml:"tooling,omitempty"`
 	Env      map[string]string        `yaml:"env,omitempty"`

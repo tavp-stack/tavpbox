@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/tavp-stack/tavpbox/internal/certs"
 	"github.com/tavp-stack/tavpbox/internal/config"
 	"github.com/tavp-stack/tavpbox/internal/podman"
 	"github.com/tavp-stack/tavpbox/internal/proxy"
@@ -46,6 +45,10 @@ var createCmd = &cobra.Command{
 
 		env := make(map[string]string)
 		env["APP_ENV"] = "local"
+		env["TZ"] = "Asia/Jakarta"
+		if cfg.TZ != "" {
+			env["TZ"] = cfg.TZ
+		}
 		for k, v := range cfg.Env {
 			env[k] = v
 		}
@@ -169,15 +172,11 @@ var createCmd = &cobra.Command{
 			}
 		}
 
-		// Ensure HTTPS cert exists
-		certs.GetWildcardCert("tavp.my.id")
-
 		// Proxy auto-detects route changes via file watcher — no restart needed
 
 		fmt.Printf("\n✓ Box '%s' created and running!\n", cfg.Name)
 		fmt.Printf("  Direct:  http://localhost:%d\n", hostPort)
 		fmt.Printf("  HTTP:    http://%s\n", domain)
-		fmt.Printf("  HTTPS:   https://%s\n", domain)
 		fmt.Printf("  LAN:     http://%s:%d\n", proxy.GetHostIP(), lanPort)
 		if cfg.Services["mailpit"].Enabled || cfg.Services["mailhog"].Enabled {
 			fmt.Printf("  Mailpit: http://%s-mailpit.%s\n", cfg.Name, globalCfg.DomainSuffix)
@@ -305,7 +304,7 @@ nginx 2>/dev/null || true
 	}
 
 	// Not pre-built, install from scratch
-	_, err = client.Exec(cname, "bash", "-c", `
+	_, err = client.Exec(cname, "bash", "-c", fmt.Sprintf(`
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y -qq --no-install-recommends nginx php8.3-fpm php8.3-cli php8.3-mbstring php8.3-xml php8.3-curl php8.3-zip php8.3-bcmath php8.3-intl php8.3-mysql php8.3-gd composer curl wget git unzip
@@ -319,7 +318,7 @@ apt-get install -y -qq --no-install-recommends nodejs
 cat > /etc/nginx/sites-available/default <<'NGINX'
 server {
     listen 80 default_server;
-    root /var/www/html;
+    root %s;
     index index.php index.html;
     location / { try_files $uri $uri/ /index.php?$query_string; }
     location ~ \.php$ {
@@ -331,7 +330,7 @@ server {
 }
 NGINX
 service php8.3-fpm start 2>/dev/null; service nginx start 2>/dev/null
-`)
+`, webroot))
 	return err
 }
 
@@ -349,7 +348,7 @@ mkdir -p /run/php
 cat > /etc/nginx/sites-available/default <<'NGINX'
 server {
     listen 80 default_server;
-    root /var/www/html/public;
+    root %s;
     index index.php;
     location / { try_files $uri $uri/ /index.php?$query_string; }
     location ~ \.php$ {
@@ -367,7 +366,7 @@ nginx 2>/dev/null || true
 	}
 
 	// Not pre-built, install from scratch
-	_, err = client.Exec(cname, "bash", "-c", `
+	_, err = client.Exec(cname, "bash", "-c", fmt.Sprintf(`
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y -qq --no-install-recommends nginx php8.3-fpm php8.3-cli php8.3-mbstring php8.3-xml php8.3-curl php8.3-zip php8.3-bcmath php8.3-intl php8.3-mysql php8.3-gd composer curl wget git unzip
@@ -377,7 +376,7 @@ apt-get install -y -qq --no-install-recommends nodejs
 cat > /etc/nginx/sites-available/default <<'NGINX'
 server {
     listen 80 default_server;
-    root /var/www/html/public;
+    root %s;
     index index.php;
     location / { try_files $uri $uri/ /index.php?$query_string; }
     location ~ \.php$ {
@@ -390,19 +389,24 @@ server {
 NGINX
 
 service php8.3-fpm start 2>/dev/null; service nginx start 2>/dev/null
-`)
+`, webroot))
 	return err
 }
 
 func installNode(client *podman.Client, cname string, cfg *config.ProjectConfig) error {
+	webroot := "/var/www/html"
+	if cfg.Webroot != "" && cfg.Webroot != "." {
+		webroot = "/var/www/html/" + cfg.Webroot
+	}
+
 	// Check if packages are already installed (pre-built image)
 	_, err := client.Exec(cname, "bash", "-c", "command -v nginx && command -v node")
 	if err == nil {
-		_, err = client.Exec(cname, "bash", "-c", `
+		_, err = client.Exec(cname, "bash", "-c", fmt.Sprintf(`
 cat > /etc/nginx/sites-available/default <<'NGINX'
 server {
     listen 80;
-    root /var/www/html;
+    root %s;
     location / {
         proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
@@ -413,12 +417,12 @@ server {
 }
 NGINX
 nginx 2>/dev/null || true
-`)
+`, webroot))
 		return err
 	}
 
 	// Not pre-built, install from scratch
-	_, err = client.Exec(cname, "bash", "-c", `
+	_, err = client.Exec(cname, "bash", "-c", fmt.Sprintf(`
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y -qq --no-install-recommends nginx
@@ -427,7 +431,7 @@ npm install -g yarn pnpm
 cat > /etc/nginx/sites-available/default <<'NGINX'
 server {
     listen 80;
-    root /var/www/html;
+    root %s;
     location / {
         proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
@@ -439,7 +443,7 @@ server {
 NGINX
 
 systemctl start nginx 2>/dev/null || service nginx start
-`)
+`, webroot))
 	return err
 }
 
@@ -449,7 +453,12 @@ func installGo(client *podman.Client, cname string, cfg *config.ProjectConfig) e
 }
 
 func installPython(client *podman.Client, cname string, cfg *config.ProjectConfig) error {
-	_, err := client.Exec(cname, "bash", "-c", `
+	webroot := "/var/www/html"
+	if cfg.Webroot != "" && cfg.Webroot != "." {
+		webroot = "/var/www/html/" + cfg.Webroot
+	}
+
+	_, err := client.Exec(cname, "bash", "-c", fmt.Sprintf(`
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y -qq --no-install-recommends nginx python3 python3-pip python3-venv curl
@@ -457,7 +466,7 @@ apt-get install -y -qq --no-install-recommends nginx python3 python3-pip python3
 cat > /etc/nginx/sites-available/default <<'NGINX'
 server {
     listen 80;
-    root /var/www/html;
+    root %s;
     location / {
         proxy_pass http://127.0.0.1:8000;
         proxy_set_header Host $host;
@@ -466,7 +475,7 @@ server {
 NGINX
 
 systemctl start nginx 2>/dev/null || service nginx start
-`)
+`, webroot))
 	return err
 }
 
