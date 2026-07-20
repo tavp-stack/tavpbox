@@ -4,6 +4,43 @@
 
 ---
 
+## 2026-07-20 — Session: v0.12.0 Complete + Docs Update + Closing
+
+**Waktu:** ~3 jam (13:00 - 15:35 WIB)
+
+**Apa yang dikerjakan:**
+- HTTP-only mode: Remove all HTTPS/SSL/TLS (proxy, setup, create, cert generation)
+- Auto-detect recipe: `detectRecipe()` from composer.json/package.json/go.mod/requirements.txt
+- events.post-start: Auto-execution during `tavpbox create` via EventsConfig
+- Auto-create on start: `tavpbox start` auto-creates container if missing
+- Asia/Jakarta timezone: Default TZ=Asia/Jakarta in config, create.go, lando.go, all Containerfiles
+- Nginx webroot fix: Volume mount handles subdir, nginx always serves from /var/www/html
+- Heredoc fix: writeNginxConfig via podman cp (avoids bash $ escaping)
+- README update: HTTP-only mode, auto-detect, timezone
+- docs.tavp.web.id: Updated and deployed via Vercel
+- Issues #4 and #9: Closed (fixed in v0.12.0)
+- Security audit: No secrets/tokens in tracked files
+
+**Commit penting:**
+- `924bf87` refactor: complete HTTP-only + TZ (remove port 443 kill, add TZ to Containerfiles, lando config)
+- `5f4d291` fix: nginx webroot + podman cp for config writing
+- `e85053a` feat: auto-detect recipe, events.post-start, auto-create on start (v0.12.0)
+- `c245732` docs: update README to HTTP-only mode (v0.12.0)
+- `12ada5a` docs: update TAVPBox v0.12.0 (tavp-docs repo)
+
+**Issues:**
+- #4 [closed] events.post-start not auto-executed ← FIXED
+- #9 [closed] TAVP stack webroot issue ← FIXED
+
+**Status:** Selesai — v0.12.0 released + docs updated
+
+**Blocker untuk sesi berikutnya:**
+- Wiki Gitea perlu update manual via web interface
+- Release v0.12.0 belum dibuat (menunggu konfirmasi)
+- English docs masih ada beberapa HTTPS references
+
+---
+
 ## 2026-07-18 — Session: phpMyAdmin + Adminer Fix → ZeroVer 0.11.2 + Webroot Issue
 
 **Waktu:** ~6 jam (08:00 - 14:30 WIB)

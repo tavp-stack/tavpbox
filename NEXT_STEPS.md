@@ -2,7 +2,7 @@
 
 > Snapshot kondisi terakhir session — dibaca AI/session berikutnya untuk langsung lanjut tanpa reka ulang konteks.
 
-**Terakhir diupdate:** 2026-07-18 14:30 WIB
+**Terakhir diupdate:** 2026-07-20 15:35 WIB
 
 ---
 
@@ -15,87 +15,74 @@
 
 | File | Perubahan |
 |------|-----------|
-| `cmd/create.go` | Fix phpMyAdmin world-writable (#7), add mysqli (#8), add adminer support, fix port mapping |
-| `images/php/Containerfile` | Add `mysqli` to docker-php-ext-install |
-| `CHANGELOG.md` | ZeroVer migration: v1.x.y → 0.x.y, add 0.11.2 |
-| `README.md` | Status Terkini → 0.11.2, fix panel port 5000→8080 |
-| `WIKI.md` | Version 0.11.2, session 2026-07-18 |
-| `SESSION_LOG.md` | Add session 2026-07-18 |
-| `NEXT_STEPS.md` | Update session snapshot |
-| `.gitignore` | Add tavpbox.exe, dist/, proxy-*.log, release-notes-*.md |
-| `fix-nginx.sh` | New utility script for container nginx config fix |
+| `cmd/create.go` | HTTP-only (remove cert check), events.post-start execution, writeNginxConfig via podman cp, webroot handling |
+| `cmd/init.go` | Auto-detect recipe from composer.json/package.json/go.mod/requirements.txt |
+| `cmd/lifecycle.go` | Auto-create on `tavpbox start` when container missing |
+| `cmd/setup.go` | Remove HTTPS cert generation step |
+| `cmd/proxy.go` | Remove port 443 from kill/restart |
+| `internal/proxy/proxy.go` | Remove TLS listener, crypto/tls, certs imports |
+| `internal/config/config.go` | Add EventsConfig struct, TZ field |
+| `internal/config/lando.go` | Add events.post-start mapping, detectRecipeFromLando(), default TZ |
+| `internal/podman/client.go` | Add Copy() and Exists() methods |
+| `images/php/Containerfile` | Add tzdata + ENV TZ=Asia/Jakarta |
+| `images/node/Containerfile` | Add tzdata + ENV TZ=Asia/Jakarta |
+| `images/python/Containerfile` | Add tzdata + ENV TZ=Asia/Jakarta |
+| `images/go/Containerfile` | Add tzdata + ENV TZ=Asia/Jakarta |
+| `CHANGELOG.md` | v0.12.0 entry |
+| `README.md` | HTTP-only mode, auto-detect, timezone |
+| `.gitignore` | Add .opencode/ |
 
 ## Progress Fitur/Task
 
 | Task | Status |
 |------|--------|
-| phpMyAdmin world-writable fix (#7) | ✅ Selesai — symlink to /etc (non-drvfs) |
-| phpMyAdmin mysqli missing (#8) | ✅ Selesai — add mysqli to Containerfile |
-| Adminer support + CSS v5.5.0 | ✅ Selesai — nginx port 8081, proxy route |
-| ZeroVer migration (0.11.2) | ✅ Selesai — CHANGELOG/README/WIKI |
-| Remote rename (origin=Gitea, github=GitHub) | ✅ Selesai |
-| Rebuild + push image to ghcr.io | ✅ Selesai — `ghcr.io/tavp-stack/tavpbox-php:latest` |
-| GitHub Release 0.11.2 | ✅ Selesai — 6 binaries uploaded |
-| Proxy routes fix | ✅ Selesai — rewrite routes.json |
-| WSL2 SSH port forwarding fix | ✅ Selesai (session sebelumnya) |
-| Auto-fix Podman on start | ✅ Selesai (session sebelumnya) |
-| TAVP stack webroot issue (#9) | ⚠️ Partial — ubah ke `webroot: public` tapi masih 403/404 |
-| `events.post-start` auto-execution (#4) | ❌ Belum — user tunda |
-| Windows Task Scheduler auto-start | ❌ Belum — user belum setup |
+| HTTP-only mode (remove HTTPS) | ✅ Selesai — v0.12.0 |
+| Auto-detect recipe | ✅ Selesai — v0.12.0 |
+| events.post-start auto-execution (#4) | ✅ Selesai — v0.12.0 |
+| Auto-create on start | ✅ Selesai — v0.12.0 |
+| Asia/Jakarta timezone default | ✅ Selesai — v0.12.0 |
+| Nginx webroot fix (#9) | ✅ Selesai — v0.12.0 |
+| Heredoc $ escaping fix | ✅ Selesai — podman cp approach |
+| README update HTTP-only | ✅ Selesai — c245732 |
+| docs.tavp.web.id update | ✅ Selesai — deployed via Vercel |
+| Wiki Gitea update | ⚠️ Perlu manual — API tidak support update |
+| Release v0.12.0 | ❌ Belum — menunggu konfirmasi |
+| Windows Task Scheduler auto-start | ❌ Belum |
 
 ## Blocker Terakhir
 
-### Issue #9: TAVP stack webroot issue (Lando migration)
-
-**Masalah:** TAVP stack projects (migrasi Lando) punya `index.php` di `public/` bukan root. TAVPBox generate nginx config hardcoded `root /var/www/html` → 403/404.
-
-**Sudah dicoba:**
-1. Ubah `.tavpbox.yml` dari `webroot: .` ke `webroot: public` → rebuild → test
-2. Fix nginx config manual via base64 → test
-3. Restart container → test
-
-**Hasil:**
-- `lula`: HTTP 404 (progress dari 403)
-- `tavp-web-id`: HTTP 403 (nginx config perlu fix)
-
-**Solusi yang belum dilakukan:**
-- Update `cmd/create.go` agar auto-detect `public/index.php` dan set nginx root ke `/var/www/html/public`
-
-### Issue #4: events.post-start not auto-executed
-
-**Status:** Ditunda (user: "nanti dulu kalo project project gw semuanya mau gw convert")
+Tidak ada blocker. Semua Issue (#4, #9) sudah fix di v0.12.0.
 
 ## Kerjaan Setengah Jadi
 
-- **Webroot fix:** `.tavpbox.yml` sudah diubah ke `webroot: public` untuk `lula` dan `tavp-web-id`, tapi masih bermasalah (403/404)
-- **Nginx config:** Sudah fix via base64 untuk `tavp-web-id` (HTTP 200 sebelum rebuild), tapi setelah rebuild kembali 403
+- **Wiki Gitea**: Perlu update manual via web interface (API tidak support create/update pages)
+- **Release v0.12.0**: Belum dibuat — menunggu konfirmasi user
 
 ## TODO Prioritas untuk Sesi Berikutnya
 
-1. **Fix webroot issue (Issue #9)** — Update `cmd/create.go` agar auto-detect `public/index.php` → set nginx root `/var/www/html/public`
-2. **Fix `lula` (HTTP 404)** — Investigasi kenapa 404 setelah `webroot: public`
-3. **Fix `tavp-web-id` (HTTP 403)** — Pastikan nginx config benar setelah rebuild
-4. **Implement events.post-start (Issue #4)** — Setelah user siap convert project
-5. **Windows Task Scheduler** — Setup auto-start Podman saat Windows boot
-6. **Test full restart cycle** — Matikan Windows → nyalakan → `tavpbox start` → verify works
+1. **Update Wiki Gitea** — Update halaman Architecture, Quick Start, Known Issues dengan info v0.12.0 (manual via web)
+2. **Release v0.12.0** — Buat Release di Gitea + mirror ke GitHub (jika user konfirmasi)
+3. **Windows Task Scheduler** — Setup auto-start Podman saat Windows boot
+4. **Test full restart cycle** — Matikan Windows → nyalakan → `tavpbox start` → verify works
+5. **English docs cleanup** — Update docs/en/guide/tavpbox.md (masih ada beberapa HTTPS references)
 
 ## Referensi Issue/PR
 
 - **#1** [closed] Port binding fix
 - **#2** [closed] Post-start events + port binding
 - **#3** [closed] HTTP→HTTPS + Service unavailable
-- **#4** [open] events.post-start not auto-executed (DITUNDA)
+- **#4** [closed] events.post-start not auto-executed ← **FIXED di v0.12.0**
 - **#5** [closed] Mailpit not started after container restart
 - **#6** [closed] Mailpit process dies silently
 - **#7** [closed] phpMyAdmin world-writable
 - **#8** [closed] mysqli extension missing
-- **#9** [open] TAVP stack webroot issue (Lando migration) ← **PRIORITAS**
+- **#9** [closed] TAVP stack webroot issue ← **FIXED di v0.12.0**
 
 ## Release Info
 
-- **0.11.2** (ZeroVer) — Commits: `73b9745`, `7ba228a`, `5dfb1be`, `675e505`, `ca707a5`, `6398e3a`, `841843b`, `0f945ba`
-- **Pre-built image** — `ghcr.io/tavp-stack/tavpbox-php:latest` (rebuilt with mysqli + adminer)
-- **GitHub Release** — https://github.com/tavp-stack/tavpbox/releases/tag/0.11.2
+- **0.12.0** (current) — Commits: `924bf87`, `5f4d291`, `e85053a`, `c245732`
+- **0.11.2** (previous) — GitHub Release: https://github.com/tavp-stack/tavpbox/releases/tag/0.11.2
+- **Pre-built image** — `ghcr.io/tavp-stack/tavpbox-php:latest`
 
 ## ZeroVer Convention
 
@@ -108,6 +95,24 @@
 
 | Project | Container | Status | URL |
 |---------|-----------|--------|-----|
-| tavp-web-id | tavp-tavp-web-id | ⚠️ HTTP 403 | https://tavp-web-id.tavp.my.id/ |
-| lula | tavp-lula | ⚠️ HTTP 404 | https://lula.tavp.my.id/ |
-| test-tavp | tavp-test-tavp | ✅ HTTP 200 | https://test-tavp.tavp.my.id/ |
+| tavp-web-id | tavp-tavp-web-id | ✅ HTTP 200 | http://tavp-web-id.tavp.my.id |
+| lula | tavp-lula | ✅ HTTP 200 | http://lula.tavp.my.id |
+
+## Git Remotes
+
+| Remote | URL | Purpose |
+|--------|-----|---------|
+| origin | https://git.glotama.com/tavp-stack/tavp-box.git | Gitea (primary) |
+| github | https://github.com/tavp-stack/tavpbox.git | GitHub mirror |
+
+## Gitea API Token
+
+- Token: `0e6b86795bb32063035b69a49784a2a438b93e96`
+- Scope: Issues, Wiki, Releases
+- Hanya untuk operasi Gitea, JANGAN di-commit ke repo
+
+## Domain & DNS
+
+- Domain: `*.tavp.my.id` via Cloudflare
+- DNS: A record `*.tavp.my.id` → `127.0.0.1`
+- Protocol: HTTP only (port 80)
